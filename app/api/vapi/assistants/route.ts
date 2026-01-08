@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 const VAPI_BASE_URL = 'https://api.vapi.ai';
 
 export async function GET() {
