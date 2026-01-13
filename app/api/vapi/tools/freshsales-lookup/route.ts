@@ -54,6 +54,7 @@ interface LookupResult {
   };
   error?: string;
   phoneSearched?: string;
+  fieldSearched?: string;
   variationsTried?: string[];
 }
 
@@ -64,9 +65,9 @@ async function lookupByPhone(
   const variations = getPhoneLookupVariations(phoneNumber);
   const normalized = normalizePhoneNumber(phoneNumber);
   
+  // Try ALL variations on mobile_number first (most reliable field)
   for (const variation of variations) {
     try {
-      // Try mobile_number field first
       const mobileUrl = `${FRESHSALES_BASE_URL}/lookup?q=${encodeURIComponent(variation)}&f=mobile_number&entities=contact`;
       
       const response = await fetch(mobileUrl, {
@@ -94,12 +95,19 @@ async function lookupByPhone(
               tags: contact.tags || [],
             },
             phoneSearched: variation,
+            fieldSearched: 'mobile_number',
             variationsTried: variations,
           };
         }
       }
+    } catch (error) {
+      console.error(`Error looking up mobile_number ${variation}:`, error);
+    }
+  }
 
-      // Try phone field as backup
+  // Only fallback to phone field if mobile_number found nothing
+  for (const variation of variations) {
+    try {
       const phoneUrl = `${FRESHSALES_BASE_URL}/lookup?q=${encodeURIComponent(variation)}&f=phone&entities=contact`;
       
       const phoneResponse = await fetch(phoneUrl, {
@@ -127,6 +135,7 @@ async function lookupByPhone(
               tags: contact.tags || [],
             },
             phoneSearched: variation,
+            fieldSearched: 'phone',
             variationsTried: variations,
           };
         }
