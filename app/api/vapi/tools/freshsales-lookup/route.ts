@@ -35,16 +35,25 @@ interface FreshsalesLookupResponse {
   };
 }
 
+interface VapiToolCall {
+  id: string;
+  name?: string;
+  parameters?: Record<string, unknown>;
+  type?: 'function';
+  function?: {
+    name: string;
+    arguments: string;
+  };
+}
+
 interface VapiToolMessage {
   type: 'tool-calls';
-  toolCallList: Array<{
-    id: string;
+  toolCallList?: VapiToolCall[];
+  toolWithToolCallList?: Array<{
     name?: string;
-    parameters?: Record<string, unknown>;
-    type?: 'function';
-    function?: {
-      name: string;
-      arguments: string;
+    toolCall: {
+      id: string;
+      parameters?: Record<string, unknown>;
     };
   }>;
   call?: {
@@ -187,12 +196,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const message: VapiToolMessage = body.message;
+    
+    // VAPI can send message at top level or nested
+    const message: VapiToolMessage = body.message || body;
 
     // Handle VAPI tool call format (supports both VAPI native and OpenAI formats)
-    if (message?.type === 'tool-calls' && message.toolCallList) {
+    if (message?.type === 'tool-calls' && (message.toolCallList || message.toolWithToolCallList)) {
+      // Normalize tool calls from either format
+      const toolCalls: VapiToolCall[] = message.toolCallList || 
+        (message.toolWithToolCallList?.map((t) => ({ 
+          id: t.toolCall?.id, 
+          name: t.name,
+          parameters: t.toolCall?.parameters 
+        })) || []);
+      
       const results = await Promise.all(
-        message.toolCallList.map(async (toolCall) => {
+        toolCalls.map(async (toolCall) => {
           // VAPI sends: { name, parameters } or { function: { name, arguments } }
           const toolName = toolCall.name || toolCall.function?.name;
           const toolArgs = toolCall.parameters || 
