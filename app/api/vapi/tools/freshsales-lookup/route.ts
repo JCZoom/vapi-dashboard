@@ -53,6 +53,7 @@ interface LookupResult {
     tags: string[];
   };
   error?: string;
+  needsPhoneNumber?: boolean;
   phoneSearched?: string;
   fieldSearched?: string;
   variationsTried?: string[];
@@ -148,6 +149,7 @@ async function lookupByPhone(
   return {
     success: false,
     error: 'No contact found with the provided phone number',
+    needsPhoneNumber: true,
     phoneSearched: normalized.withCountryCode,
     variationsTried: variations,
   };
