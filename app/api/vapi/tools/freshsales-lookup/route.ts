@@ -39,8 +39,10 @@ interface VapiToolMessage {
   type: 'tool-calls';
   toolCallList: Array<{
     id: string;
-    type: 'function';
-    function: {
+    name?: string;
+    parameters?: Record<string, unknown>;
+    type?: 'function';
+    function?: {
       name: string;
       arguments: string;
     };
@@ -187,16 +189,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const message: VapiToolMessage = body.message;
 
-    // Handle VAPI tool call format
+    // Handle VAPI tool call format (supports both VAPI native and OpenAI formats)
     if (message?.type === 'tool-calls' && message.toolCallList) {
       const results = await Promise.all(
         message.toolCallList.map(async (toolCall) => {
-          if (toolCall.function.name === 'check_1583_status') {
-            const args = JSON.parse(toolCall.function.arguments || '{}');
-            
+          // VAPI sends: { name, parameters } or { function: { name, arguments } }
+          const toolName = toolCall.name || toolCall.function?.name;
+          const toolArgs = toolCall.parameters || 
+            (toolCall.function?.arguments ? JSON.parse(toolCall.function.arguments) : {});
+          
+          if (toolName === 'check_1583_status') {
             // Priority 1: Use provided phone number from arguments
             // Priority 2: Use caller's phone number from the call
-            let phoneNumber = args.phone_number;
+            let phoneNumber = toolArgs.phone_number;
             
             if (!phoneNumber && message.call?.customer?.number) {
               phoneNumber = message.call.customer.number;
@@ -225,7 +230,7 @@ export async function POST(request: NextRequest) {
             toolCallId: toolCall.id,
             result: JSON.stringify({
               success: false,
-              error: `Unknown tool: ${toolCall.function.name}`,
+              error: `Unknown tool: ${toolName}`,
             }),
           };
         })
