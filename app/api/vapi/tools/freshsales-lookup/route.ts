@@ -12,7 +12,7 @@ interface FreshsalesContact {
   mobile_number?: string;
   custom_field?: {
     cf_mailbox_id?: string;
-    cf_1583_approval_status?: string;
+    cf_1583_doc_status?: string;
     cf_flagged_for_resubmission?: string;
     cf_belongs_to?: string;
   };
@@ -88,7 +88,7 @@ async function lookupByPhone(
             contact: {
               displayName: contact.display_name || 'Unknown',
               mailboxId: contact.custom_field?.cf_mailbox_id || '',
-              approvalStatus: contact.custom_field?.cf_1583_approval_status || 'No Docs',
+              approvalStatus: contact.custom_field?.cf_1583_doc_status || 'No Docs',
               flaggedForResubmission: contact.custom_field?.cf_flagged_for_resubmission || 'No',
               belongsTo: contact.custom_field?.cf_belongs_to || '',
               tags: contact.tags || [],
@@ -121,7 +121,7 @@ async function lookupByPhone(
             contact: {
               displayName: contact.display_name || 'Unknown',
               mailboxId: contact.custom_field?.cf_mailbox_id || '',
-              approvalStatus: contact.custom_field?.cf_1583_approval_status || 'No Docs',
+              approvalStatus: contact.custom_field?.cf_1583_doc_status || 'No Docs',
               flaggedForResubmission: contact.custom_field?.cf_flagged_for_resubmission || 'No',
               belongsTo: contact.custom_field?.cf_belongs_to || '',
               tags: contact.tags || [],
