@@ -15,6 +15,7 @@ export type TemplateCategory =
   | 'Phone Numbers'
   | 'Tools'
   | 'Analytics'
+  | 'Tool Testing'
   | 'Custom';
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';

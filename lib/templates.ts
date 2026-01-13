@@ -341,6 +341,28 @@ export const apiTemplates: ApiTemplate[] = [
     description: 'Build a custom API request',
     requiredFields: [],
   },
+
+  // Tool Testing (Local)
+  {
+    id: 'test-1583-status',
+    name: 'Test 1583 Status Lookup',
+    category: 'Tool Testing',
+    method: 'POST',
+    path: '/api/vapi/tools/freshsales-lookup',
+    description: 'Test the Freshsales phone lookup to verify 1583 status retrieval is working',
+    requiredFields: [
+      {
+        name: 'phone_number',
+        label: 'Phone Number',
+        type: 'body',
+        placeholder: '+19092601366 or 9092601366',
+        description: 'Customer phone number to look up in Freshsales',
+      },
+    ],
+    bodyTemplate: {
+      phone_number: '',
+    },
+  },
 ];
 
 export const templateCategories = [
@@ -349,6 +371,7 @@ export const templateCategories = [
   'Phone Numbers',
   'Tools',
   'Analytics',
+  'Tool Testing',
   'Custom',
 ] as const;
 

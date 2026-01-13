@@ -123,10 +123,13 @@ export default function Dashboard() {
   };
 
   const generateCurl = (): string => {
-    const baseUrl = 'https://api.vapi.ai';
+    const isLocalToolTest = selectedTemplate.category === 'Tool Testing';
+    const baseUrl = isLocalToolTest ? window.location.origin : 'https://api.vapi.ai';
     const fullPath = updatePathWithFields(path, fieldValues);
     let curl = `curl -X ${method} '${baseUrl}${fullPath}'`;
-    curl += ` \\\n  -H 'Authorization: Bearer $VAPI_API_KEY'`;
+    if (!isLocalToolTest) {
+      curl += ` \\\n  -H 'Authorization: Bearer $VAPI_API_KEY'`;
+    }
     curl += ` \\\n  -H 'Content-Type: application/json'`;
 
     try {
@@ -177,28 +180,50 @@ export default function Dashboard() {
         }
       }
 
-      const res = await fetch('/api/vapi/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: finalPath,
-          method,
-          headers: customHeaders,
-          body: bodyData,
-        }),
-      });
+      // Check if this is a local tool testing endpoint
+      const isLocalToolTest = selectedTemplate.category === 'Tool Testing';
 
-      const data = await res.json();
-
-      if (data.error) {
-        setError(data.error);
-      } else {
-        setResponse({
-          status: data.status,
-          statusText: data.statusText,
-          headers: data.headers,
-          data: data.data,
+      if (isLocalToolTest) {
+        // Call local API directly
+        const res = await fetch(finalPath, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: bodyData ? JSON.stringify(bodyData) : undefined,
         });
+
+        const data = await res.json();
+        
+        setResponse({
+          status: res.status,
+          statusText: res.statusText,
+          headers: Object.fromEntries(res.headers.entries()),
+          data: data,
+        });
+      } else {
+        // Use VAPI proxy for regular VAPI API calls
+        const res = await fetch('/api/vapi/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: finalPath,
+            method,
+            headers: customHeaders,
+            body: bodyData,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setResponse({
+            status: data.status,
+            statusText: data.statusText,
+            headers: data.headers,
+            data: data.data,
+          });
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed');
