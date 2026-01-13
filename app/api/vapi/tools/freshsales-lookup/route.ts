@@ -3,6 +3,16 @@ import { normalizePhoneNumber, getPhoneLookupVariations } from '@/lib/phoneUtils
 
 export const runtime = 'edge';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
 const FRESHSALES_BASE_URL = 'https://ipostal1-org.myfreshworks.com/crm/sales/api';
 
 interface FreshsalesContact {
@@ -170,7 +180,7 @@ export async function POST(request: NextRequest) {
             }),
           }],
         },
-        { status: 200 }
+        { status: 200, headers: corsHeaders }
       );
     }
 
@@ -221,7 +231,7 @@ export async function POST(request: NextRequest) {
         })
       );
 
-      return NextResponse.json({ results });
+      return NextResponse.json({ results }, { headers: corsHeaders });
     }
 
     // Fallback for direct API calls (non-VAPI)
@@ -230,12 +240,12 @@ export async function POST(request: NextRequest) {
     if (!phone_number) {
       return NextResponse.json(
         { success: false, error: 'phone_number is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     const result = await lookupByPhone(phone_number, freshsalesToken);
-    return NextResponse.json(result);
+    return NextResponse.json(result, { headers: corsHeaders });
 
   } catch (error) {
     console.error('Freshsales lookup error:', error);
@@ -249,7 +259,7 @@ export async function POST(request: NextRequest) {
           }),
         }],
       },
-      { status: 200 }
+      { status: 200, headers: corsHeaders }
     );
   }
 }
