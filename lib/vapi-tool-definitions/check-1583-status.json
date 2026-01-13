@@ -1,0 +1,38 @@
+{
+  "name": "check_1583_status",
+  "type": "function",
+  "async": false,
+  "description": "Look up a customer's 1583 approval status in Freshsales CRM using their phone number. First tries the caller's phone number automatically, then asks for a phone number if needed.",
+  "server": {
+    "url": "vapi.jeffcoy.net/api/vapi/tools/freshsales-lookup",
+    "timeoutSeconds": 30
+  },
+  "function": {
+    "name": "check_1583_status",
+    "description": "Check the customer's USPS 1583 form approval status by looking up their account using their phone number. The tool automatically tries the caller's phone number first. If that doesn't find a match, it will indicate that a phone number is needed.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "phone_number": {
+          "type": "string",
+          "description": "The customer's phone number to look up. Can be in any format: +19092601366, 19092601366, 9092601366, (909) 260-1366, etc. If not provided, the system will automatically try to use the caller's phone number."
+        }
+      },
+      "required": []
+    }
+  },
+  "messages": [
+    {
+      "type": "request-start",
+      "content": "One moment please while I check your 1583 approval status."
+    },
+    {
+      "type": "request-complete",
+      "content": ""
+    },
+    {
+      "type": "request-failed",
+      "content": "I'm sorry, I'm having trouble looking up your account right now. Let me transfer you to a team member who can help."
+    }
+  ]
+}
