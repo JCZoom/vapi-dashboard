@@ -237,15 +237,23 @@ export default function Dashboard() {
       <header className="bg-gray-900 border-b border-gray-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold">Vapi API Explorer</h1>
-          <button
-            onClick={() => {
-              sessionStorage.removeItem('vapi_dashboard_auth');
-              window.location.reload();
-            }}
-            className="text-sm text-gray-400 hover:text-white transition-colors"
-          >
-            Logout
-          </button>
+          <div className="flex items-center space-x-4">
+            <a
+              href="/freshcaller"
+              className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              📞 Freshcaller Monitor
+            </a>
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('vapi_dashboard_auth');
+                window.location.reload();
+              }}
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
