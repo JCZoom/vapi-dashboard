@@ -1,0 +1,39 @@
+{
+  "type": "function",
+  "function": {
+    "name": "lookup_customer_for_greeting",
+    "description": "Look up the customer's first name using their phone number (caller ID) for personalized greetings. This tool should be called at the START of every call to check if the caller is a known customer. If successful, use the returned firstName in your greeting.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "phone_number": {
+          "type": "string",
+          "description": "The customer's phone number. If not provided, the system will automatically use the caller's phone number from caller ID."
+        }
+      },
+      "required": []
+    }
+  },
+  "server": {
+    "url": "https://vapi.jeffcoy.net/api/vapi/tools/customer-lookup",
+    "timeoutSeconds": 30
+  },
+  "messages": [
+    {
+      "type": "request-start",
+      "content": "",
+      "blocking": true
+    },
+    {
+      "role": "assistant",
+      "type": "request-complete",
+      "endCallAfterSpokenEnabled": false
+    },
+    {
+      "type": "request-failed",
+      "content": "",
+      "endCallAfterSpokenEnabled": false
+    }
+  ],
+  "async": false
+}

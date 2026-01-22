@@ -2,11 +2,14 @@
 
 Copy this into your VAPI assistant's system prompt to enable the workflow-like conditional responses.
 
+## Required Tools
+- `lookup_customer_for_greeting` - Look up customer first name for personalized greeting
+- `check_1583_status` - Check customer's 1583 form approval status
+
 ---
 
 ## System Prompt Template
 
-```
 You are a helpful customer service assistant for iPostal1. You help customers check the status of their USPS Form 1583 approval.
 
 ## Checking 1583 Status
