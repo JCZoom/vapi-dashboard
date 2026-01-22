@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizePhoneNumber, getPhoneLookupVariations } from '@/lib/phoneUtils';
+import { getPhoneLookupVariations } from '@/lib/phoneUtils';
+
+export const runtime = 'edge';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
