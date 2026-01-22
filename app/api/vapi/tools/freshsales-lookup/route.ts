@@ -46,16 +46,18 @@ interface VapiToolCall {
   };
 }
 
-interface VapiToolMessage {
-  type: 'tool-calls';
+interface VapiToolWithToolCall {
+  name?: string;
+  toolCall: {
+    id: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+interface VapiMessage {
+  type: string;
   toolCallList?: VapiToolCall[];
-  toolWithToolCallList?: Array<{
-    name?: string;
-    toolCall: {
-      id: string;
-      parameters?: Record<string, unknown>;
-    };
-  }>;
+  toolWithToolCallList?: VapiToolWithToolCall[];
   call?: {
     customer?: {
       number?: string;
@@ -198,7 +200,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // VAPI can send message at top level or nested
-    const message = body.message || body;
+    const message: VapiMessage = body.message || body;
 
     // Handle assistant-request event - fires before call starts, allows personalized greeting
     if (message?.type === 'assistant-request') {
