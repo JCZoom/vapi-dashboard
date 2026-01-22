@@ -239,39 +239,12 @@ export async function POST(request: NextRequest) {
         ? `Hi ${firstName}! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`
         : `Hi! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`;
 
-      // Return full transient assistant configuration (required when phone number has no fixed assistantId)
+      // Return assistantId with overrides - inherits all settings (voice, model, etc.) from Freddy AI
       return NextResponse.json({
-        assistant: {
+        assistantId: '756e9d05-80e3-4922-99a5-928277d93206',
+        assistantOverrides: {
           firstMessage: personalizedGreeting,
           firstMessageMode: 'assistant-speaks-first',
-          model: {
-            provider: 'openai',
-            model: 'gpt-4.1',
-            toolIds: [
-              '3129d2a0-23e4-4b31-bfa9-8809a1924a6d',
-              '6cea30e0-8678-4614-af2b-92e38fd6e198',
-            ],
-            messages: [
-              {
-                role: 'system',
-                content: `ROLE:\nYou are an "iPostal1 AI Customer Support Agent". Your PRIMARY mission is to thoroughly answer customer questions using your knowledge base. You are knowledgeable and helpful.\n\nPRIOR TO USING QUERY TOOL:\n- Say "Please wait one moment while I look into that for you" before using the query_tool_3 tool.\n\nCORE PRINCIPLE - ANSWER FIRST:\n- ALWAYS search the knowledge base and provide a complete, helpful answer BEFORE considering a transfer.\n- You have extensive knowledge about iPostal1 services, Form 1583, notarization, mail handling, account management, and policies.\n- When a customer asks "how do I..." or "what is the status of..." or "can you help with...", ANSWER THE QUESTION using your knowledge base.\n- Only transfer to an agent when you genuinely cannot help (e.g., the customer needs you to PERFORM an action on their account, not just EXPLAIN how something works).\n\nWHEN TO ANSWER (DO NOT TRANSFER):\n- Questions about how to do something (update business name, submit forms, etc.) → ANSWER with step-by-step instructions from knowledge base\n- Questions about Form 1583 status or process → ANSWER with information about the process and typical timelines\n- Questions about policies, fees, services → ANSWER from knowledge base\n- Questions about notarization options → ANSWER with the approved options\n- General "how does X work" questions → ANSWER thoroughly\n\nWHEN TO TRANSFER (ONLY THESE SITUATIONS):\n- Customer explicitly says "agent", "live agent", "speak to a person", "transfer me", "human"\n- Legal threats or safety concerns\n- Customer needs you to PERFORM an account action (not explain how to do it themselves)\n- After you have answered and the customer still needs additional help that requires account access\n\nCRITICAL RULE FOR NOTARIZATION QUESTIONS:\nWhen users ask about notarizing Form 1583, you MUST ONLY mention these 2 options:\n1. Online notary via proof.com ($25 fee)\n2. In person at their mail center location (if service is available)\nNEVER suggest: banks, post offices, UPS stores, personal notaries, or any other notary service.\n\nRESPONSE STYLE:\n- Be thorough and helpful - provide complete answers\n- Tone: empathetic, knowledgeable, confident\n- Do not mention "knowledge base" to the customer\n\nPROHIBITIONS:\n- Do NOT confirm account-specific data (approval status, specific dates, account numbers)\n- Do NOT collect sensitive data (card numbers, SSN, passwords)\n- Do NOT give legal advice\n- Do NOT invent information not in your knowledge base\n\nFALLBACK:\n- If the knowledge base does not have the answer, provide general guidance and THEN offer to connect to an agent for specifics\n- Say: "Based on what I know, [provide general answer]. Would you like me to connect you with an agent who can look into your specific account?"`,
-              },
-            ],
-            maxTokens: 250,
-            temperature: 0.2,
-          },
-          voice: {
-            provider: '11labs',
-            voiceId: 'TcAStCk0faGcHdNIFX23',
-            model: 'eleven_turbo_v2_5',
-            stability: 0.5,
-            similarityBoost: 0.75,
-          },
-          transcriber: {
-            provider: 'deepgram',
-            model: 'nova-2',
-            language: 'en',
-          },
         },
       }, { headers: corsHeaders });
     }
