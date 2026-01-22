@@ -198,7 +198,52 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // VAPI can send message at top level or nested
-    const message: VapiToolMessage = body.message || body;
+    const message = body.message || body;
+
+    // Handle assistant-request event - fires before call starts, allows personalized greeting
+    if (message?.type === 'assistant-request') {
+      const customerPhone = message.call?.customer?.number;
+      let firstName: string | null = null;
+
+      if (customerPhone) {
+        // Quick lookup for first name only
+        const variations = getPhoneLookupVariations(customerPhone);
+        for (const variation of variations) {
+          try {
+            const url = `${FRESHSALES_BASE_URL}/lookup?q=${encodeURIComponent(variation)}&f=mobile_number&entities=contact`;
+            const response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Token token=${freshsalesToken}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            if (response.ok) {
+              const data = await response.json();
+              const contacts = data.contacts?.contacts;
+              if (contacts && contacts.length > 0) {
+                const displayName = contacts[0].display_name || '';
+                firstName = displayName.split(/\s+/)[0] || null;
+                break;
+              }
+            }
+          } catch (error) {
+            console.error(`Greeting lookup error for ${variation}:`, error);
+          }
+        }
+      }
+
+      const personalizedGreeting = firstName
+        ? `Hi ${firstName}! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`
+        : `Hi! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`;
+
+      return NextResponse.json({
+        assistant: {
+          firstMessage: personalizedGreeting,
+          firstMessageMode: 'assistant-speaks-first',
+        },
+      }, { headers: corsHeaders });
+    }
 
     // Handle VAPI tool call format (supports both VAPI native and OpenAI formats)
     if (message?.type === 'tool-calls' && (message.toolCallList || message.toolWithToolCallList)) {
