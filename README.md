@@ -182,3 +182,4 @@ vapi-dashboard/
 
 MIT
 # Triggered deployment Thu Jan 22 11:51:53 EST 2026
+# Forced redeploy Thu Jan 22 13:00:35 EST 2026
