@@ -240,11 +240,15 @@ export async function POST(request: NextRequest) {
         : `Hi! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`;
 
       // Return assistantId with overrides - inherits all settings (voice, model, etc.) from Freddy AI
+      // Note: startSpeakingPlan is inherited from assistant config, no need to override
       return NextResponse.json({
         assistantId: '756e9d05-80e3-4922-99a5-928277d93206',
         assistantOverrides: {
           firstMessage: personalizedGreeting,
           firstMessageMode: 'assistant-speaks-first',
+          startSpeakingPlan: {
+            waitSeconds: 2,
+          },
         },
       }, { headers: corsHeaders });
     }
