@@ -245,6 +245,54 @@ export async function POST(request: NextRequest) {
             };
           }
 
+          // Handle customer greeting lookup tool
+          if (toolName === 'lookup_customer_for_greeting') {
+            let phoneNumber = toolArgs.phone_number as string | undefined;
+            
+            if (!phoneNumber && message.call?.customer?.number) {
+              phoneNumber = message.call.customer.number;
+            }
+
+            if (!phoneNumber) {
+              return {
+                toolCallId: toolCall.id,
+                result: JSON.stringify({
+                  success: true,
+                  isKnownCustomer: false,
+                  firstName: '',
+                  message: 'No caller phone number available',
+                }),
+              };
+            }
+
+            // Look up customer and extract first name
+            const lookupResult = await lookupByPhone(phoneNumber, freshsalesToken);
+            
+            if (lookupResult.success && lookupResult.contact) {
+              const displayName = lookupResult.contact.displayName || '';
+              const firstName = displayName.split(/\s+/)[0] || '';
+              
+              return {
+                toolCallId: toolCall.id,
+                result: JSON.stringify({
+                  success: true,
+                  isKnownCustomer: true,
+                  firstName: firstName,
+                  displayName: displayName,
+                }),
+              };
+            }
+
+            return {
+              toolCallId: toolCall.id,
+              result: JSON.stringify({
+                success: true,
+                isKnownCustomer: false,
+                firstName: '',
+              }),
+            };
+          }
+
           return {
             toolCallId: toolCall.id,
             result: JSON.stringify({
