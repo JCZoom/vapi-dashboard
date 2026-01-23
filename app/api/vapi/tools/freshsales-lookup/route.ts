@@ -246,26 +246,26 @@ export async function POST(request: NextRequest) {
         ? `Hi ${firstName}! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`
         : `Hi! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`;
 
-      // Return assistantId with overrides - inherits all settings (voice, model, etc.) from Freddy AI
-      // Note: startSpeakingPlan is inherited from assistant config, no need to override
+      // Return assistantId with overrides - inherits all settings (voice, model, startSpeakingPlan, etc.) from Freddy AI
+      // startSpeakingPlan is NOT overridden here - control it via VAPI dashboard
       return NextResponse.json({
         assistantId: '756e9d05-80e3-4922-99a5-928277d93206',
         assistantOverrides: {
           firstMessage: personalizedGreeting,
           firstMessageMode: 'assistant-speaks-first',
-          startSpeakingPlan: {
-            waitSeconds: 3,
-          },
         },
       }, { headers: corsHeaders });
     }
 
     // Handle VAPI tool call format (supports multiple possible formats)
-    const hasToolCalls = message?.type === 'tool-calls' && 
-      (message.toolCallList || message.toolWithToolCallList || message.toolCalls ||
-       body.toolCallList || body.toolWithToolCallList || body.toolCalls);
+    // Check for tool-calls type OR presence of tool call arrays (for function tools with own server URL)
+    const hasToolCallsType = message?.type === 'tool-calls';
+    const hasToolCallArrays = message.toolCallList || message.toolWithToolCallList || message.toolCalls ||
+       body.toolCallList || body.toolWithToolCallList || body.toolCalls;
     
-    if (hasToolCalls) {
+    console.log('Tool call detection - hasToolCallsType:', hasToolCallsType, 'hasToolCallArrays:', !!hasToolCallArrays, 'message.type:', message?.type);
+    
+    if (hasToolCallsType || hasToolCallArrays) {
       // Normalize tool calls from any format VAPI might send
       const rawToolCalls = message.toolCallList || message.toolCalls || 
         body.toolCallList || body.toolCalls ||
