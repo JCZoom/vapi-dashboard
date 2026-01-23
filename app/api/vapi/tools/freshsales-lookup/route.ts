@@ -205,6 +205,31 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
+    // DEBUG MODE: Return received body so we can see what VAPI actually sends
+    // This will show up in the VAPI call logs
+    const DEBUG_CAPTURE = true;
+    if (DEBUG_CAPTURE && !body.debug_bypass) {
+      // Extract any tool call ID we can find
+      const toolCallId = body?.message?.toolCallList?.[0]?.id ||
+                        body?.message?.toolCalls?.[0]?.id ||
+                        body?.message?.toolWithToolCallList?.[0]?.toolCall?.id ||
+                        body?.toolCallList?.[0]?.id ||
+                        body?.toolCalls?.[0]?.id ||
+                        'unknown_tool_call';
+      
+      return NextResponse.json({
+        results: [{
+          toolCallId: toolCallId,
+          result: JSON.stringify({
+            debug: true,
+            message: 'Captured VAPI request for debugging',
+            receivedBodyKeys: Object.keys(body),
+            receivedBody: body,
+          })
+        }]
+      }, { status: 200, headers: corsHeaders });
+    }
+    
     // Debug: Log the full body structure to understand VAPI's payload
     console.log('VAPI webhook received:', JSON.stringify(body, null, 2));
     
