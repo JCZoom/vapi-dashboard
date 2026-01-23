@@ -39,6 +39,7 @@ interface VapiToolCall {
   id: string;
   name?: string;
   parameters?: Record<string, unknown>;
+  arguments?: Record<string, unknown>;  // VAPI sends arguments, not parameters
   type?: 'function';
   function?: {
     name: string;
@@ -51,6 +52,10 @@ interface VapiToolWithToolCall {
   toolCall: {
     id: string;
     parameters?: Record<string, unknown>;
+    function?: {
+      name: string;
+      parameters?: Record<string, unknown>;
+    };
   };
 }
 
@@ -286,9 +291,9 @@ export async function POST(request: NextRequest) {
       
       const results = await Promise.all(
         toolCalls.map(async (toolCall) => {
-          // VAPI sends: { name, parameters } or { function: { name, arguments } }
+          // VAPI sends: { name, arguments } or { name, parameters } or { function: { name, arguments } }
           const toolName = toolCall.name || toolCall.function?.name;
-          const toolArgs = toolCall.parameters || 
+          const toolArgs = toolCall.arguments || toolCall.parameters || 
             (toolCall.function?.arguments ? JSON.parse(toolCall.function.arguments) : {});
           
           if (toolName === 'check_1583_status') {
