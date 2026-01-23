@@ -387,13 +387,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ results }, { headers: corsHeaders });
     }
 
+    // Log unhandled request format for debugging
+    console.log('UNHANDLED REQUEST FORMAT - body keys:', Object.keys(body), 'message keys:', message ? Object.keys(message) : 'no message');
+    
     // Fallback for direct API calls (non-VAPI)
     const { phone_number } = body;
     
     if (!phone_number) {
+      // Return debug info to help diagnose VAPI format issues
       return NextResponse.json(
-        { success: false, error: 'phone_number is required' },
-        { status: 400, headers: corsHeaders }
+        { 
+          success: false, 
+          error: 'Unrecognized request format',
+          debug: {
+            bodyKeys: Object.keys(body),
+            messageType: message?.type,
+            hasToolCallList: !!message?.toolCallList,
+            hasToolWithToolCallList: !!message?.toolWithToolCallList,
+            hasToolCalls: !!message?.toolCalls,
+            bodyHasToolCalls: !!body.toolCalls,
+          }
+        },
+        { status: 200, headers: corsHeaders }
       );
     }
 
