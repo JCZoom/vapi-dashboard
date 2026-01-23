@@ -239,6 +239,12 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold">Vapi API Explorer</h1>
           <div className="flex items-center space-x-4">
             <a
+              href="/qa"
+              className="text-sm text-green-400 hover:text-green-300 transition-colors"
+            >
+              ✅ QA Evaluation
+            </a>
+            <a
               href="/freshcaller"
               className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
             >

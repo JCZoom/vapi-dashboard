@@ -22,6 +22,11 @@ interface TestRun {
   assistantId: string;
 }
 
+interface Assistant {
+  id: string;
+  name: string;
+}
+
 export default function QAPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -37,6 +42,9 @@ export default function QAPage() {
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [activeTab, setActiveTab] = useState<'setup' | 'results' | 'history'>('setup');
   const [runName, setRunName] = useState('');
+  const [assistants, setAssistants] = useState<Assistant[]>([]);
+  const [loadingAssistants, setLoadingAssistants] = useState(false);
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
 
   useEffect(() => {
     const authenticated = sessionStorage.getItem('vapi_dashboard_auth') === 'true';
@@ -48,6 +56,23 @@ export default function QAPage() {
     if (savedRuns) {
       setTestRuns(JSON.parse(savedRuns));
     }
+    
+    // Fetch assistants list
+    const fetchAssistants = async () => {
+      setLoadingAssistants(true);
+      try {
+        const res = await fetch('/api/vapi/assistants');
+        if (res.ok) {
+          const data = await res.json();
+          setAssistants(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch assistants:', err);
+      } finally {
+        setLoadingAssistants(false);
+      }
+    };
+    fetchAssistants();
   }, []);
 
   const parseQuestions = (input: string): string[] => {
@@ -136,7 +161,14 @@ export default function QAPage() {
   };
 
   const updateRating = (id: string, rating: 'pass' | 'fail') => {
-    setResults(prev => prev.map(r => r.id === id ? { ...r, rating } : r));
+    setResults(prev => prev.map(r => {
+      if (r.id === id) {
+        // Toggle: if clicking same rating, clear it (undo)
+        const newRating = r.rating === rating ? null : rating;
+        return { ...r, rating: newRating };
+      }
+      return r;
+    }));
   };
 
   const updateComment = (id: string, comment: string) => {
@@ -170,6 +202,31 @@ export default function QAPage() {
     const updatedRuns = testRuns.filter(r => r.id !== id);
     setTestRuns(updatedRuns);
     localStorage.setItem('qa_test_runs', JSON.stringify(updatedRuns));
+  };
+
+  // Update a saved test run's result (comment or rating)
+  const updateSavedRunResult = (runId: string, resultId: string, updates: Partial<QAResult>) => {
+    const updatedRuns = testRuns.map(run => {
+      if (run.id === runId) {
+        return {
+          ...run,
+          results: run.results.map(r => 
+            r.id === resultId ? { ...r, ...updates } : r
+          ),
+        };
+      }
+      return run;
+    });
+    setTestRuns(updatedRuns);
+    localStorage.setItem('qa_test_runs', JSON.stringify(updatedRuns));
+  };
+
+  // Toggle rating on saved run (allows undo)
+  const updateSavedRunRating = (runId: string, resultId: string, rating: 'pass' | 'fail') => {
+    const run = testRuns.find(r => r.id === runId);
+    const result = run?.results.find(r => r.id === resultId);
+    const newRating = result?.rating === rating ? null : rating;
+    updateSavedRunResult(runId, resultId, { rating: newRating });
   };
 
   const getStats = (resultSet: QAResult[]) => {
@@ -253,14 +310,30 @@ export default function QAPage() {
               <h2 className="text-lg font-semibold mb-4">Test Configuration</h2>
               
               <div className="mb-4">
-                <label className="block text-sm text-gray-400 mb-2">Assistant ID</label>
-                <input
-                  type="text"
-                  value={assistantId}
-                  onChange={(e) => setAssistantId(e.target.value)}
-                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
-                  placeholder="Enter assistant ID"
-                />
+                <label className="block text-sm text-gray-400 mb-2">Assistant</label>
+                {loadingAssistants ? (
+                  <div className="text-gray-500">Loading assistants...</div>
+                ) : assistants.length > 0 ? (
+                  <select
+                    value={assistantId}
+                    onChange={(e) => setAssistantId(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                  >
+                    {assistants.map((assistant) => (
+                      <option key={assistant.id} value={assistant.id}>
+                        {assistant.name || assistant.id}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={assistantId}
+                    onChange={(e) => setAssistantId(e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                    placeholder="Enter assistant ID"
+                  />
+                )}
               </div>
 
               <div className="mb-4">
@@ -491,10 +564,16 @@ export default function QAPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <button
+                            onClick={() => setExpandedRunId(expandedRunId === run.id ? null : run.id)}
+                            className="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-500"
+                          >
+                            {expandedRunId === run.id ? 'Collapse' : 'Expand'}
+                          </button>
+                          <button
                             onClick={() => loadTestRun(run)}
                             className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
                           >
-                            View
+                            Edit in Results
                           </button>
                           <button
                             onClick={() => deleteTestRun(run.id)}
@@ -540,6 +619,67 @@ export default function QAPage() {
                           />
                         </div>
                       </div>
+
+                      {/* Expanded Results - Inline editing */}
+                      {expandedRunId === run.id && (
+                        <div className="mt-4 space-y-3 border-t border-gray-700 pt-4">
+                          {run.results.map((result, index) => (
+                            <div
+                              key={result.id}
+                              className={`bg-gray-700 rounded p-3 border-l-4 ${
+                                result.rating === 'pass'
+                                  ? 'border-green-500'
+                                  : result.rating === 'fail'
+                                  ? 'border-red-500'
+                                  : 'border-gray-600'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-gray-400 text-xs">#{index + 1}</span>
+                                    <span className="text-sm font-medium text-blue-400">Q:</span>
+                                    <span className="text-sm">{result.question}</span>
+                                  </div>
+                                  <div className="bg-gray-600 rounded p-2 mt-1 text-sm">
+                                    <span className="text-green-400">A:</span>
+                                    <p className="mt-1 text-gray-300 whitespace-pre-wrap text-xs">{result.answer}</p>
+                                  </div>
+                                  <textarea
+                                    value={result.comment}
+                                    onChange={(e) => updateSavedRunResult(run.id, result.id, { comment: e.target.value })}
+                                    placeholder="Add notes..."
+                                    className="w-full mt-2 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-xs resize-none"
+                                    rows={1}
+                                  />
+                                </div>
+                                <div className="flex gap-1 ml-2">
+                                  <button
+                                    onClick={() => updateSavedRunRating(run.id, result.id, 'pass')}
+                                    className={`p-1 rounded text-sm ${
+                                      result.rating === 'pass'
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-gray-600 text-gray-400 hover:bg-green-600 hover:text-white'
+                                    }`}
+                                  >
+                                    👍
+                                  </button>
+                                  <button
+                                    onClick={() => updateSavedRunRating(run.id, result.id, 'fail')}
+                                    className={`p-1 rounded text-sm ${
+                                      result.rating === 'fail'
+                                        ? 'bg-red-600 text-white'
+                                        : 'bg-gray-600 text-gray-400 hover:bg-red-600 hover:text-white'
+                                    }`}
+                                  >
+                                    👎
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
