@@ -58,6 +58,7 @@ interface VapiMessage {
   type: string;
   toolCallList?: VapiToolCall[];
   toolWithToolCallList?: VapiToolWithToolCall[];
+  toolCalls?: VapiToolCall[];  // Alternative format VAPI may use
   call?: {
     customer?: {
       number?: string;
@@ -259,15 +260,29 @@ export async function POST(request: NextRequest) {
       }, { headers: corsHeaders });
     }
 
-    // Handle VAPI tool call format (supports both VAPI native and OpenAI formats)
-    if (message?.type === 'tool-calls' && (message.toolCallList || message.toolWithToolCallList)) {
-      // Normalize tool calls from either format
-      const toolCalls: VapiToolCall[] = message.toolCallList || 
+    // Handle VAPI tool call format (supports multiple possible formats)
+    const hasToolCalls = message?.type === 'tool-calls' && 
+      (message.toolCallList || message.toolWithToolCallList || message.toolCalls ||
+       body.toolCallList || body.toolWithToolCallList || body.toolCalls);
+    
+    if (hasToolCalls) {
+      // Normalize tool calls from any format VAPI might send
+      const rawToolCalls = message.toolCallList || message.toolCalls || 
+        body.toolCallList || body.toolCalls ||
         (message.toolWithToolCallList?.map((t) => ({ 
           id: t.toolCall?.id, 
           name: t.name,
           parameters: t.toolCall?.parameters 
-        })) || []);
+        }))) ||
+        (body.toolWithToolCallList?.map((t: VapiToolWithToolCall) => ({ 
+          id: t.toolCall?.id, 
+          name: t.name,
+          parameters: t.toolCall?.parameters 
+        }))) || [];
+      
+      const toolCalls: VapiToolCall[] = rawToolCalls;
+      
+      console.log('Tool calls detected:', JSON.stringify(toolCalls, null, 2));
       
       const results = await Promise.all(
         toolCalls.map(async (toolCall) => {
