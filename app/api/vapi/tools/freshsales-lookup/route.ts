@@ -262,32 +262,46 @@ export async function POST(request: NextRequest) {
       }, { headers: corsHeaders });
     }
 
-    // Handle VAPI tool call format (supports multiple possible formats)
-    // Check for tool-calls type OR presence of tool call arrays (for function tools with own server URL)
-    const hasToolCallsType = message?.type === 'tool-calls';
-    const hasToolCallArrays = message.toolCallList || message.toolWithToolCallList || message.toolCalls ||
-       body.toolCallList || body.toolWithToolCallList || body.toolCalls;
-    
-    console.log('Tool call detection - hasToolCallsType:', hasToolCallsType, 'hasToolCallArrays:', !!hasToolCallArrays, 'message.type:', message?.type);
-    
-    if (hasToolCallsType || hasToolCallArrays) {
-      // Normalize tool calls from any format VAPI might send
-      const rawToolCalls = message.toolCallList || message.toolCalls || 
-        body.toolCallList || body.toolCalls ||
-        (message.toolWithToolCallList?.map((t) => ({ 
-          id: t.toolCall?.id, 
+    // AGGRESSIVE tool call detection - try to find tool calls ANYWHERE in the body
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function findToolCalls(obj: any): VapiToolCall[] {
+      if (!obj) return [];
+      // Direct arrays
+      if (obj.toolCallList) return obj.toolCallList;
+      if (obj.toolCalls) return obj.toolCalls;
+      if (obj.toolWithToolCallList) {
+        return obj.toolWithToolCallList.map((t: VapiToolWithToolCall) => ({
+          id: t.toolCall?.id || t.toolCall?.function?.name,
           name: t.name,
-          parameters: t.toolCall?.parameters 
-        }))) ||
-        (body.toolWithToolCallList?.map((t: VapiToolWithToolCall) => ({ 
-          id: t.toolCall?.id, 
-          name: t.name,
-          parameters: t.toolCall?.parameters 
-        }))) || [];
-      
-      const toolCalls: VapiToolCall[] = rawToolCalls;
-      
+          arguments: t.toolCall?.parameters || t.toolCall?.function?.parameters,
+        }));
+      }
+      // Check nested message
+      if (obj.message) return findToolCalls(obj.message);
+      return [];
+    }
+    
+    const toolCalls = findToolCalls(body);
+    const hasToolCalls = toolCalls.length > 0 || message?.type === 'tool-calls';
+    
+    console.log('Tool call detection - found:', toolCalls.length, 'tools, type:', message?.type, 'body keys:', Object.keys(body));
+    
+    if (hasToolCalls) {
       console.log('Tool calls detected:', JSON.stringify(toolCalls, null, 2));
+      
+      // If no tool calls found but type is tool-calls, return debug info
+      if (toolCalls.length === 0) {
+        return NextResponse.json({
+          results: [{
+            toolCallId: 'no_tools_found',
+            result: JSON.stringify({
+              success: false,
+              error: 'No tool calls found in request',
+              receivedBody: body,
+            })
+          }]
+        }, { status: 200, headers: corsHeaders });
+      }
       
       const results = await Promise.all(
         toolCalls.map(async (toolCall) => {
