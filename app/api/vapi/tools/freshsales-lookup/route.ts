@@ -392,26 +392,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ results }, { headers: corsHeaders });
     }
 
-    // Log unhandled request format for debugging
-    console.log('UNHANDLED REQUEST FORMAT - body keys:', Object.keys(body), 'message keys:', message ? Object.keys(message) : 'no message');
+    // Log unhandled request format for debugging - include full body for diagnosis
+    console.log('UNHANDLED REQUEST - FULL BODY:', JSON.stringify(body, null, 2));
     
     // Fallback for direct API calls (non-VAPI)
     const { phone_number } = body;
     
     if (!phone_number) {
-      // Return debug info to help diagnose VAPI format issues
+      // Return the FULL body so we can see exactly what VAPI sends
       return NextResponse.json(
         { 
-          success: false, 
-          error: 'Unrecognized request format',
-          debug: {
-            bodyKeys: Object.keys(body),
-            messageType: message?.type,
-            hasToolCallList: !!message?.toolCallList,
-            hasToolWithToolCallList: !!message?.toolWithToolCallList,
-            hasToolCalls: !!message?.toolCalls,
-            bodyHasToolCalls: !!body.toolCalls,
-          }
+          results: [{
+            toolCallId: 'debug',
+            result: JSON.stringify({
+              success: false, 
+              error: 'Unrecognized request format - see receivedBody',
+              receivedBody: body,
+            })
+          }]
         },
         { status: 200, headers: corsHeaders }
       );
