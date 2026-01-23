@@ -199,8 +199,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
+    // Debug: Log the full body structure to understand VAPI's payload
+    console.log('VAPI webhook received:', JSON.stringify(body, null, 2));
+    
     // VAPI can send message at top level or nested
     const message: VapiMessage = body.message || body;
+    
+    // VAPI may send call info at multiple paths - check all possibilities
+    const callInfo = message.call || body.call;
 
     // Handle assistant-request event - fires before call starts, allows personalized greeting
     if (message?.type === 'assistant-request') {
@@ -247,7 +253,7 @@ export async function POST(request: NextRequest) {
           firstMessage: personalizedGreeting,
           firstMessageMode: 'assistant-speaks-first',
           startSpeakingPlan: {
-            waitSeconds: 2,
+            waitSeconds: 3,
           },
         },
       }, { headers: corsHeaders });
@@ -272,12 +278,17 @@ export async function POST(request: NextRequest) {
           
           if (toolName === 'check_1583_status') {
             // Priority 1: Use provided phone number from arguments
-            // Priority 2: Use caller's phone number from the call
+            // Priority 2: Use caller's phone number from the call (check multiple paths)
             let phoneNumber = toolArgs.phone_number;
             
-            if (!phoneNumber && message.call?.customer?.number) {
-              phoneNumber = message.call.customer.number;
+            if (!phoneNumber) {
+              // Try multiple paths where VAPI might put customer number
+              phoneNumber = callInfo?.customer?.number || 
+                           body.call?.customer?.number ||
+                           message.call?.customer?.number;
             }
+            
+            console.log('check_1583_status - phoneNumber:', phoneNumber, 'from args:', toolArgs.phone_number);
 
             if (!phoneNumber) {
               return {
@@ -302,8 +313,10 @@ export async function POST(request: NextRequest) {
           if (toolName === 'lookup_customer_for_greeting') {
             let phoneNumber = toolArgs.phone_number as string | undefined;
             
-            if (!phoneNumber && message.call?.customer?.number) {
-              phoneNumber = message.call.customer.number;
+            if (!phoneNumber) {
+              phoneNumber = callInfo?.customer?.number || 
+                           body.call?.customer?.number ||
+                           message.call?.customer?.number;
             }
 
             if (!phoneNumber) {
