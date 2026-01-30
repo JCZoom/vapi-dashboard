@@ -251,13 +251,26 @@ export async function POST(request: NextRequest) {
         ? `Hi ${firstName}! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`
         : `Hi! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`;
 
-      // Return assistantId with overrides - inherits all settings (voice, model, startSpeakingPlan, etc.) from Freddy AI
-      // startSpeakingPlan is NOT overridden here - control it via VAPI dashboard
+      // Return assistantId with overrides - inherits all settings from Freddy AI
+      // startSpeakingPlan configured here to allow delays beyond the 5s UI limit
+      // Adjust START_SPEAKING_DELAY_SECONDS below to change the wait time
+      const START_SPEAKING_DELAY_SECONDS = 8; // Configurable: seconds to wait before AI speaks (UI max is 5)
+      
       return NextResponse.json({
         assistantId: '756e9d05-80e3-4922-99a5-928277d93206',
         assistantOverrides: {
           firstMessage: personalizedGreeting,
           firstMessageMode: 'assistant-speaks-first',
+          // startSpeakingPlan: controls when AI starts speaking after call connects
+          startSpeakingPlan: {
+            waitSeconds: START_SPEAKING_DELAY_SECONDS,
+            smartEndpointingEnabled: true,
+            transcriptionEndpointingPlan: {
+              onPunctuationSeconds: 0.5,
+              onNoPunctuationSeconds: 1.5,
+              onNumberSeconds: 0.5,
+            },
+          },
         },
       }, { headers: corsHeaders });
     }
