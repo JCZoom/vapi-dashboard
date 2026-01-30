@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
       // Return assistantId with overrides - inherits all settings from Freddy AI
       // startSpeakingPlan configured here to allow delays beyond the 5s UI limit
       // Adjust START_SPEAKING_DELAY_SECONDS below to change the wait time
-      const START_SPEAKING_DELAY_SECONDS = 12; // Configurable: seconds to wait before AI speaks (UI max is 5)
+      const START_SPEAKING_DELAY_SECONDS = 8; // Configurable: seconds to wait before AI speaks (UI max is 5)
       
       return NextResponse.json({
         assistantId: '756e9d05-80e3-4922-99a5-928277d93206',
