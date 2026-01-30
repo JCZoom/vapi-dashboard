@@ -252,25 +252,15 @@ export async function POST(request: NextRequest) {
         : `Hi! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`;
 
       // Return assistantId with overrides - inherits all settings from Freddy AI
-      // startSpeakingPlan configured here to allow delays beyond the 5s UI limit
-      // Adjust START_SPEAKING_DELAY_SECONDS below to change the wait time
-      const START_SPEAKING_DELAY_SECONDS = 10; // Configurable: seconds to wait before AI speaks (UI max is 5)
-      
+      // NOTE: firstMessageMode and startSpeakingPlan are set on the assistant directly
+      // to handle Freshcaller's bridging delay. We only override firstMessage for personalization.
       return NextResponse.json({
         assistantId: '756e9d05-80e3-4922-99a5-928277d93206',
         assistantOverrides: {
+          // Only override the greeting text for personalization
+          // firstMessageMode is "assistant-waits-for-user" on the assistant
+          // This prevents greeting cutoff when calls are forwarded from Freshcaller
           firstMessage: personalizedGreeting,
-          firstMessageMode: 'assistant-speaks-first',
-          // startSpeakingPlan: controls when AI starts speaking after call connects
-          startSpeakingPlan: {
-            waitSeconds: START_SPEAKING_DELAY_SECONDS,
-            smartEndpointingEnabled: true,
-            transcriptionEndpointingPlan: {
-              onPunctuationSeconds: 0.5,
-              onNoPunctuationSeconds: 1.5,
-              onNumberSeconds: 0.5,
-            },
-          },
         },
       }, { headers: corsHeaders });
     }
