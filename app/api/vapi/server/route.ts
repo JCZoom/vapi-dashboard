@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizePhoneNumber, getPhoneLookupVariations } from '@/lib/phoneUtils';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-export const runtime = 'edge';
+// Remove edge runtime to use AWS SDK
+// export const runtime = 'edge';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +17,22 @@ export async function OPTIONS() {
 
 const FRESHSALES_BASE_URL = 'https://ipostal1-org.myfreshworks.com/crm/sales/api';
 
+const lambda = new LambdaClient({
+  region: process.env.AWS_REGION || 'us-east-2',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  },
+});
+
+interface ToolCall {
+  id: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 interface VapiServerMessage {
   message: {
     type: string;
@@ -23,7 +41,51 @@ interface VapiServerMessage {
         number?: string;
       };
     };
+    toolCalls?: ToolCall[];
   };
+}
+
+async function searchKnowledgeBase(query: string): Promise<string> {
+  try {
+    const command = new InvokeCommand({
+      FunctionName: 'kb-search',
+      Payload: JSON.stringify({ query, k: 5 }),
+    });
+
+    const response = await lambda.send(command);
+    
+    if (response.Payload) {
+      const result = JSON.parse(new TextDecoder().decode(response.Payload));
+      
+      // Format results for voice response
+      if (result.results && result.results.length > 0) {
+        const topResults = result.results.slice(0, 3);
+        const formattedParts: string[] = [];
+        
+        for (const r of topResults) {
+          const meta = r.meta || {};
+          const text = meta.text_cleaned || meta.raw_text || '';
+          const title = meta.article_title || '';
+          
+          // Clean HTML and truncate for voice
+          const cleanText = text.replace(/<[^>]*>/g, '').substring(0, 400);
+          if (title) {
+            formattedParts.push(`From "${title}": ${cleanText}`);
+          } else {
+            formattedParts.push(cleanText);
+          }
+        }
+        
+        return formattedParts.join('\n\n');
+      }
+    }
+    
+    return "I couldn't find specific information about that in our knowledge base.";
+    
+  } catch (error) {
+    console.error('KB search error:', error);
+    return "I'm having trouble accessing the knowledge base right now.";
+  }
 }
 
 async function lookupCustomerName(phoneNumber: string, freshsalesToken: string): Promise<string | null> {
@@ -64,6 +126,31 @@ export async function POST(request: NextRequest) {
     const messageType = body.message?.type;
 
     console.log('VAPI server event:', messageType);
+
+    // Handle tool-calls event - this fires when the assistant calls a function tool
+    if (messageType === 'tool-calls') {
+      const toolCalls = body.message?.toolCalls || [];
+      const results = [];
+
+      for (const tc of toolCalls) {
+        if (tc.function.name === 'search_knowledge_base') {
+          const args = JSON.parse(tc.function.arguments || '{}');
+          const query = args.query || '';
+          
+          console.log(`KB search tool called with query: ${query}`);
+          const searchResult = await searchKnowledgeBase(query);
+          
+          results.push({
+            toolCallId: tc.id,
+            result: searchResult,
+          });
+        }
+      }
+
+      if (results.length > 0) {
+        return NextResponse.json({ results }, { headers: corsHeaders });
+      }
+    }
 
     // Handle assistant-request event - this fires before the call starts
     if (messageType === 'assistant-request') {
