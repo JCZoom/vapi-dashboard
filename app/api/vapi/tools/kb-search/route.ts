@@ -235,32 +235,40 @@ export async function POST(request: NextRequest) {
           error?: string;
         };
         
-        // Format results for voice - return ONLY the best match, clean and concise
+        // Format results for voice - find first result with actual content
         if (lambdaResult.results && lambdaResult.results.length > 0) {
-          const best = lambdaResult.results[0];
-          const meta = best.meta || {};
-          // Get text - prefer text_cleaned, fall back to raw_text
-          let text = meta.text_cleaned || meta.raw_text || '';
+          let finalText = '';
           
-          // Light cleanup only - don't strip too much
-          text = text
-            .replace(/<[^>]*>/g, ' ')  // Replace HTML tags with space
-            .replace(/#+\s*/g, '')  // Remove # symbols only, keep text
-            .replace(/Click for Full View/gi, '')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/[\n\r]+/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .substring(0, 400);
+          for (const result of lambdaResult.results.slice(0, 5)) {
+            const meta = result.meta || {};
+            let text = meta.text_cleaned || meta.raw_text || '';
+            
+            // Clean up text
+            text = text
+              .replace(/<[^>]*>/g, ' ')  // Remove HTML tags
+              .replace(/#+\s*/g, '')  // Remove # symbols
+              .replace(/Click for Full View/gi, '')
+              .replace(/&nbsp;/g, ' ')
+              .replace(/[\n\r]+/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            
+            // Skip if mostly empty (less than 50 chars of real content)
+            if (text.length >= 50) {
+              finalText = text.substring(0, 400);
+              break;
+            }
+          }
           
-          // If still empty, use article title
-          if (!text && meta.article_title) {
-            text = `Information about ${meta.article_title}`;
+          // Fallback to first article title if no good content found
+          if (!finalText) {
+            const title = lambdaResult.results[0]?.meta?.article_title;
+            finalText = title ? `I found an article about ${title}. Would you like me to connect you with an agent for more details?` : '';
           }
           
           results.push({
             toolCallId,
-            result: text || "I couldn't extract the information. Let me connect you with an agent.",
+            result: finalText || "I couldn't find detailed information. Let me connect you with an agent.",
           });
         } else {
           results.push({
