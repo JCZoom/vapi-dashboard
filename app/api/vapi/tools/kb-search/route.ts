@@ -182,13 +182,19 @@ export async function POST(request: NextRequest) {
       const toolCallId = tc.id || 'unknown';
       let query = '';
       
-      // Extract query from arguments
-      if (tc.function?.arguments) {
-        try {
-          const args = JSON.parse(tc.function.arguments);
-          query = args.query || '';
-        } catch {
-          query = tc.function.arguments;
+      // Extract query from arguments - handle both string and object formats
+      const rawArgs = tc.function?.arguments || tc.parameters || {};
+      if (rawArgs) {
+        if (typeof rawArgs === 'string') {
+          try {
+            const args = JSON.parse(rawArgs);
+            query = args.query || '';
+          } catch {
+            query = rawArgs;
+          }
+        } else if (typeof rawArgs === 'object') {
+          // Arguments already parsed as object
+          query = (rawArgs as Record<string, unknown>).query as string || '';
         }
       }
       
@@ -232,18 +238,16 @@ export async function POST(request: NextRequest) {
             result: resultText || "I found some information but couldn't format it properly.",
           });
         } else {
-          // DEBUG: Include what we got from Lambda
           results.push({
             toolCallId,
-            result: `DEBUG: Lambda returned ${lambdaResult.results?.length || 0} results for query "${query}". Raw: ${JSON.stringify(lambdaResult).substring(0, 200)}`,
+            result: "I couldn't find specific information about that in our knowledge base. Would you like me to connect you with an agent?",
           });
         }
       } catch (error) {
         console.error('KB search Lambda error:', error);
-        // DEBUG: Include error details
         results.push({
           toolCallId,
-          result: `DEBUG ERROR: ${(error as Error).message || 'Unknown error'} for query "${query}"`,
+          result: "I'm having trouble accessing our knowledge base right now. Let me connect you with an agent who can help.",
         });
       }
     }
