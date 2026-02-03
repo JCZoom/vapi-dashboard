@@ -96,23 +96,44 @@ async function invokeLambda(functionName: string, payload: object): Promise<unkn
   // Create authorization header
   const authorizationHeader = `${algorithm} Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
   
-  const response = await fetch(endpoint, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Amz-Date': amzDate,
-      'Authorization': authorizationHeader,
-    },
-    body,
-  });
+  // Add timeout - VAPI has ~10s timeout for tools
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Lambda error:', response.status, errorText);
-    throw new Error(`Lambda invocation failed: ${response.status}`);
+  console.log('Invoking Lambda:', functionName, 'at', new Date().toISOString());
+  
+  try {
+    const response = await fetch(endpoint, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Amz-Date': amzDate,
+        'Authorization': authorizationHeader,
+      },
+      body,
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    console.log('Lambda response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Lambda error:', response.status, errorText);
+      throw new Error(`Lambda invocation failed: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('Lambda result received, results count:', (result as {results?: unknown[]}).results?.length || 0);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if ((error as Error).name === 'AbortError') {
+      console.error('Lambda invocation timed out after 8s');
+      throw new Error('Lambda timed out');
+    }
+    throw error;
   }
-  
-  return response.json();
 }
 
 interface VapiToolCall {
@@ -174,12 +195,33 @@ export async function POST(request: NextRequest) {
       
       console.log('KB search query:', query);
       
-      // TEMPORARY: Hardcoded response to test if VAPI integration works
-      // Remove this block once we confirm the flow works
-      if (query.toLowerCase().includes('1583') || query.toLowerCase().includes('form')) {
+      // TEMPORARY: Hardcoded responses while we fix Lambda timeout
+      const q = query.toLowerCase();
+      if (q.includes('1583') || q.includes('form')) {
         results.push({
           toolCallId,
-          result: "Form 1583 is a USPS form required to authorize a mail center to receive mail on your behalf. All iPostal1 customers must complete and notarize this form. You can complete Form 1583 online through our website, and notarization can be done remotely using our online notary service.",
+          result: "Form 1583 is a USPS form required to authorize a Commercial Mail Receiving Agency like iPostal1 to receive mail on your behalf. All customers must complete and notarize this form. You can complete it online through the iPostal1 website, and notarization can be done remotely using our online notary service or in person at your mail center.",
+        });
+        continue;
+      }
+      if (q.includes('international') || q.includes('outside') || q.includes('country')) {
+        results.push({
+          toolCallId,
+          result: "International customers can absolutely use iPostal1. You will need to complete Form 1583 which can be notarized remotely using our online notary service. You'll need a valid government-issued ID and may need your passport. The process takes about 15 minutes online.",
+        });
+        continue;
+      }
+      if (q.includes('notary') || q.includes('notarize') || q.includes('notarization')) {
+        results.push({
+          toolCallId,
+          result: "iPostal1 offers online remote notarization for Form 1583. You can complete the notarization process from anywhere using your computer or smartphone. The process takes about 15 minutes and requires a valid government-issued ID. Alternatively, you can have your Form 1583 notarized in person at your local mail center or any notary public.",
+        });
+        continue;
+      }
+      if (q.includes('forward') || q.includes('shipping') || q.includes('mail')) {
+        results.push({
+          toolCallId,
+          result: "iPostal1 can forward your mail and packages anywhere in the world. You can request forwarding through your online dashboard or mobile app. Shipping options and rates vary by destination and package size. You can also set up automatic forwarding on a schedule that works for you.",
         });
         continue;
       }
