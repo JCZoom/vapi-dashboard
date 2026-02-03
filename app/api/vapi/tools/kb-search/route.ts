@@ -232,16 +232,18 @@ export async function POST(request: NextRequest) {
             result: resultText || "I found some information but couldn't format it properly.",
           });
         } else {
+          // DEBUG: Include what we got from Lambda
           results.push({
             toolCallId,
-            result: "I couldn't find specific information about that in our knowledge base. Would you like me to connect you with an agent?",
+            result: `DEBUG: Lambda returned ${lambdaResult.results?.length || 0} results for query "${query}". Raw: ${JSON.stringify(lambdaResult).substring(0, 200)}`,
           });
         }
       } catch (error) {
         console.error('KB search Lambda error:', error);
+        // DEBUG: Include error details
         results.push({
           toolCallId,
-          result: "I'm having trouble accessing our knowledge base right now. Let me connect you with an agent who can help.",
+          result: `DEBUG ERROR: ${(error as Error).message || 'Unknown error'} for query "${query}"`,
         });
       }
     }
