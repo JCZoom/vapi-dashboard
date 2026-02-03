@@ -235,27 +235,23 @@ export async function POST(request: NextRequest) {
           error?: string;
         };
         
-        // Format results for voice
+        // Format results for voice - return ONLY the best match, clean and concise
         if (lambdaResult.results && lambdaResult.results.length > 0) {
-          const formattedParts: string[] = [];
+          const best = lambdaResult.results[0];
+          const meta = best.meta || {};
+          // Clean up text: remove HTML, headers, and limit length
+          let text = (meta.text_cleaned || meta.raw_text || '')
+            .replace(/<[^>]*>/g, '')  // Remove HTML tags
+            .replace(/^#+ .*/gm, '')  // Remove markdown headers
+            .replace(/Click for Full View/g, '')  // Remove UI text
+            .replace(/[\n\r]+/g, ' ')  // Single line
+            .replace(/\s+/g, ' ')  // Normalize whitespace
+            .trim()
+            .substring(0, 300);  // Shorter for faster LLM processing
           
-          for (const r of lambdaResult.results.slice(0, 3)) {
-            const meta = r.meta || {};
-            const text = (meta.text_cleaned || meta.raw_text || '').replace(/<[^>]*>/g, '').substring(0, 400);
-            const title = meta.article_title || '';
-            
-            if (title && text) {
-              formattedParts.push(`From "${title}": ${text}`);
-            } else if (text) {
-              formattedParts.push(text);
-            }
-          }
-          
-          // CRITICAL: VAPI requires single-line strings - newlines cause parsing errors
-          const resultText = formattedParts.join(' ').replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
           results.push({
             toolCallId,
-            result: resultText || "I found some information but couldn't format it properly.",
+            result: text || "I found information but couldn't extract it properly.",
           });
         } else {
           results.push({
