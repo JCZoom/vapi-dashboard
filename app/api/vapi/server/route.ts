@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     const body: VapiServerMessage = await request.json();
     const messageType = body.message?.type;
 
-    console.log('VAPI server event:', messageType);
+    console.log('VAPI server event:', messageType, new Date().toISOString());
 
     // Handle tool-calls event - this fires when the assistant calls a function tool
     if (messageType === 'tool-calls') {
