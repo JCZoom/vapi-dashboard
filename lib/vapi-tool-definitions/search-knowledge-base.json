@@ -1,0 +1,31 @@
+{
+  "type": "function",
+  "function": {
+    "name": "search_knowledge_base",
+    "description": "Search the iPostal1 knowledge base to find answers to customer questions. Use this tool whenever a customer asks about iPostal1 services, pricing, mail forwarding, package handling, 1583 forms, account management, or any other iPostal1-related topic. Always search the knowledge base before answering questions to ensure accuracy.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The customer's question or the topic to search for. Be specific and include key terms from the customer's question."
+        }
+      },
+      "required": ["query"]
+    }
+  },
+  "server": {
+    "url": "https://vapi-dashboard.vercel.app/api/kb-search"
+  },
+  "async": false,
+  "messages": [
+    {
+      "type": "request-start",
+      "content": "Let me check our knowledge base for that information."
+    },
+    {
+      "type": "request-failed",
+      "content": "I'm having trouble accessing our knowledge base right now. Let me try to help you with what I know, or I can transfer you to a support agent."
+    }
+  ]
+}
