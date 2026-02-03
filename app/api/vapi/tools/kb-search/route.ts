@@ -202,37 +202,6 @@ export async function POST(request: NextRequest) {
       
       console.log('KB search query:', query);
       
-      // TEMPORARY: Hardcoded responses while we fix Lambda timeout
-      const q = query.toLowerCase();
-      if (q.includes('1583') || q.includes('form')) {
-        results.push({
-          toolCallId,
-          result: "Form 1583 is a USPS form required to authorize a Commercial Mail Receiving Agency like iPostal1 to receive mail on your behalf. All customers must complete and notarize this form. You can complete it online through the iPostal1 website, and notarization can be done remotely using our online notary service or in person at your mail center.",
-        });
-        continue;
-      }
-      if (q.includes('international') || q.includes('outside') || q.includes('country')) {
-        results.push({
-          toolCallId,
-          result: "International customers can absolutely use iPostal1. You will need to complete Form 1583 which can be notarized remotely using our online notary service. You'll need a valid government-issued ID and may need your passport. The process takes about 15 minutes online.",
-        });
-        continue;
-      }
-      if (q.includes('notary') || q.includes('notarize') || q.includes('notarization')) {
-        results.push({
-          toolCallId,
-          result: "iPostal1 offers online remote notarization for Form 1583. You can complete the notarization process from anywhere using your computer or smartphone. The process takes about 15 minutes and requires a valid government-issued ID. Alternatively, you can have your Form 1583 notarized in person at your local mail center or any notary public.",
-        });
-        continue;
-      }
-      if (q.includes('forward') || q.includes('shipping') || q.includes('mail')) {
-        results.push({
-          toolCallId,
-          result: "iPostal1 can forward your mail and packages anywhere in the world. You can request forwarding through your online dashboard or mobile app. Shipping options and rates vary by destination and package size. You can also set up automatic forwarding on a schedule that works for you.",
-        });
-        continue;
-      }
-      
       try {
         // Invoke Lambda
         const lambdaResult = await invokeLambda('kb-search', { query, k: 5 }) as {
