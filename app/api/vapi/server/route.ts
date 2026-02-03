@@ -14,6 +14,8 @@ export async function OPTIONS() {
 }
 
 const FRESHSALES_BASE_URL = 'https://ipostal1-org.myfreshworks.com/crm/sales/api';
+const AWS_REGION = 'us-east-2';
+const AWS_SERVICE = 'lambda';
 
 interface ToolCall {
   id: string;
@@ -35,6 +37,125 @@ interface VapiServerMessage {
     toolCallList?: ToolCall[];
     toolWithToolCallList?: Array<{ toolCall: ToolCall }>;
   };
+}
+
+// AWS Signature V4 functions for Lambda invocation
+async function sha256(data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function hmacSha256(key: ArrayBuffer, data: string): Promise<ArrayBuffer> {
+  const encoder = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    key,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  return crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(data));
+}
+
+async function getSignatureKey(secretKey: string, dateStamp: string): Promise<ArrayBuffer> {
+  const encoder = new TextEncoder();
+  const kDate = await hmacSha256(encoder.encode(`AWS4${secretKey}`).buffer as ArrayBuffer, dateStamp);
+  const kRegion = await hmacSha256(kDate, AWS_REGION);
+  const kService = await hmacSha256(kRegion, AWS_SERVICE);
+  return hmacSha256(kService, 'aws4_request');
+}
+
+async function invokeLambda(functionName: string, payload: object): Promise<unknown> {
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error('AWS credentials not configured');
+  }
+
+  const host = `lambda.${AWS_REGION}.amazonaws.com`;
+  const endpoint = `https://${host}/2015-03-31/functions/${functionName}/invocations`;
+  const method = 'POST';
+  const body = JSON.stringify(payload);
+  
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = await sha256(body);
+  
+  const canonicalUri = `/2015-03-31/functions/${functionName}/invocations`;
+  const canonicalHeaders = `content-type:application/json\nhost:${host}\nx-amz-date:${amzDate}\n`;
+  const signedHeaders = 'content-type;host;x-amz-date';
+  
+  const canonicalRequest = [method, canonicalUri, '', canonicalHeaders, signedHeaders, payloadHash].join('\n');
+  
+  const algorithm = 'AWS4-HMAC-SHA256';
+  const credentialScope = `${dateStamp}/${AWS_REGION}/${AWS_SERVICE}/aws4_request`;
+  const stringToSign = [algorithm, amzDate, credentialScope, await sha256(canonicalRequest)].join('\n');
+  
+  const signingKey = await getSignatureKey(secretAccessKey, dateStamp);
+  const signatureBuffer = await hmacSha256(signingKey, stringToSign);
+  const signature = Array.from(new Uint8Array(signatureBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  
+  const authorizationHeader = `${algorithm} Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+  
+  const response = await fetch(endpoint, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Amz-Date': amzDate,
+      'Authorization': authorizationHeader,
+    },
+    body,
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Lambda error:', response.status, errorText);
+    throw new Error(`Lambda invocation failed: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+async function searchKnowledgeBase(query: string): Promise<string> {
+  try {
+    console.log('Searching KB for:', query);
+    const lambdaResult = await invokeLambda('kb-search', { query, k: 5 }) as {
+      results?: Array<{ meta?: { text_cleaned?: string; raw_text?: string; article_title?: string } }>;
+      error?: string;
+    };
+    
+    console.log('Lambda result count:', lambdaResult.results?.length || 0);
+    
+    if (lambdaResult.results && lambdaResult.results.length > 0) {
+      const formattedParts: string[] = [];
+      
+      for (const r of lambdaResult.results.slice(0, 3)) {
+        const meta = r.meta || {};
+        const text = (meta.text_cleaned || meta.raw_text || '').replace(/<[^>]*>/g, '').substring(0, 400);
+        const title = meta.article_title || '';
+        
+        if (title && text) {
+          formattedParts.push(`From "${title}": ${text}`);
+        } else if (text) {
+          formattedParts.push(text);
+        }
+      }
+      
+      return formattedParts.join('\n\n') || "I found some information but couldn't format it properly.";
+    }
+    
+    return "I couldn't find specific information about that in our knowledge base. Would you like me to connect you with an agent?";
+  } catch (error) {
+    console.error('KB search error:', error);
+    return "I'm having trouble accessing our knowledge base right now. Let me connect you with an agent who can help.";
+  }
 }
 
 async function lookupCustomerName(phoneNumber: string, freshsalesToken: string): Promise<string | null> {
@@ -76,34 +197,51 @@ export async function POST(request: NextRequest) {
 
     console.log('VAPI server event:', messageType, new Date().toISOString());
 
-    // Handle tool-calls event - forward to dedicated KB search endpoint
+    // Handle tool-calls event - process KB search directly
     if (messageType === 'tool-calls') {
+      console.log('Processing tool-calls event');
+      
       // Extract tool calls from various VAPI formats
       const toolCalls = body.message?.toolCalls || 
                        body.message?.toolCallList ||
                        body.message?.toolWithToolCallList?.map(t => t.toolCall) ||
                        [];
       
-      if (toolCalls.length > 0) {
-        // Forward to the KB search endpoint
-        const kbSearchUrl = new URL('/api/vapi/tools/kb-search', request.url);
-        const kbResponse = await fetch(kbSearchUrl.toString(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ toolCalls }),
-        });
-        
-        if (kbResponse.ok) {
-          const result = await kbResponse.json();
-          return NextResponse.json(result, { headers: corsHeaders });
+      console.log('Found tool calls:', toolCalls.length);
+      
+      const results = [];
+      
+      for (const tc of toolCalls) {
+        if (tc.function.name === 'search_knowledge_base') {
+          let query = '';
+          try {
+            const args = JSON.parse(tc.function.arguments || '{}');
+            query = args.query || '';
+          } catch {
+            query = tc.function.arguments;
+          }
+          
+          console.log('KB search query:', query);
+          const searchResult = await searchKnowledgeBase(query);
+          console.log('KB search result length:', searchResult.length);
+          
+          results.push({
+            toolCallId: tc.id,
+            result: searchResult,
+          });
         }
       }
       
-      // Fallback if KB search fails
+      if (results.length > 0) {
+        console.log('Returning results:', results.length);
+        return NextResponse.json({ results }, { headers: corsHeaders });
+      }
+      
+      // Fallback if no KB search tools found
       return NextResponse.json({
         results: toolCalls.map((tc: ToolCall) => ({
           toolCallId: tc.id,
-          result: "I'm having trouble accessing the knowledge base. Let me connect you with an agent.",
+          result: "I couldn't process that request. Let me connect you with an agent.",
         }))
       }, { headers: corsHeaders });
     }
