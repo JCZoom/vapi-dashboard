@@ -135,3 +135,56 @@ ANSWER: Two forms of identification are required:
 - U.S. Armed Forces card
 
 Note: The address on your secondary ID must match the address on Form 1583.
+
+================================================================================
+QUESTION: How much does check deposit cost?
+QUESTION: What is the fee for depositing a check?
+QUESTION: Can you help me deposit a check?
+================================================================================
+
+ANSWER: Check deposit costs $4.95 per request, plus trackable USPS shipping (typically $11-15). 
+
+How it works:
+- First, request a scan of the check
+- After the scan is complete, select "Check Deposit" 
+- Choose your bank account and shipping method
+- Checks are physically mailed to your bank via USPS with tracking
+- You can deposit up to 5 checks per request
+
+Note: You must add your bank account in Account Settings before using this feature.
+
+================================================================================
+QUESTION: How much does scanning cost?
+QUESTION: What is the scanning fee?
+================================================================================
+
+ANSWER: Scanning costs $2.25 for the first 10 pages, then $0.25 per additional page.
+
+Discount bundles are available:
+- $10 for 5 scans (save 10%)
+- $18 for 10 scans (save 20%)
+- $30 for 20 scans (save 33%)
+
+================================================================================
+QUESTION: How much does shredding cost?
+QUESTION: What is the shredding fee?
+================================================================================
+
+ANSWER: Shredding costs $2.25 per letter (includes up to 10 pages), then $0.25 per additional page.
+
+The same discount bundles apply to both scanning and shredding.
+
+================================================================================
+QUESTION: I live outside the US, are there special requirements?
+QUESTION: What are the requirements for international customers?
+QUESTION: I'm an international customer, what do I need to know?
+================================================================================
+
+ANSWER: Yes, if you live outside the U.S. or will be shipping mail internationally, there are special requirements:
+
+1. You MUST use the online notary service (proof.com) - in-person notarization at a mail center is NOT available for international customers
+2. You still need to complete Form 1583 with two valid forms of ID
+3. Foreign passports are accepted when notarizing online
+4. If your country isn't listed or you can't add your ID, contact customer support for assistance
+
+Note: International shipping availability varies by mail center and destination country.

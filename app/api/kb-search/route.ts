@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
 const lambda = new LambdaClient({
   region: process.env.AWS_REGION || 'us-east-2',
   credentials: {
@@ -42,13 +52,13 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    return NextResponse.json({ error: 'No response from Lambda' }, { status: 500 });
+    return NextResponse.json({ error: 'No response from Lambda' }, { status: 500, headers: corsHeaders });
     
   } catch (error) {
     console.error('KB search error:', error);
     return NextResponse.json(
       { error: `KB search failed: ${error instanceof Error ? error.message : 'Unknown error'}` },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
