@@ -15,7 +15,7 @@
     }
   },
   "server": {
-    "url": "https://vapi-dashboard.vercel.app/api/kb-search"
+    "url": "https://vapi-dashboard-jczoom.vercel.app/api/vapi/server"
   },
   "async": false,
   "messages": [
