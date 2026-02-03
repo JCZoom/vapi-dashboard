@@ -151,14 +151,21 @@ interface VapiMessage {
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  console.log('=== KB SEARCH REQUEST START ===', new Date().toISOString());
+  console.log('Headers:', JSON.stringify(Object.fromEntries(request.headers.entries())));
+  
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    console.log('Raw body length:', rawBody.length);
+    console.log('Raw body preview:', rawBody.substring(0, 500));
+    
+    const body = JSON.parse(rawBody);
     const message: VapiMessage = body.message || body;
     
-    console.log('KB search request received:', JSON.stringify(body).substring(0, 300));
-    
-    // Extract tool call info
+    // Extract tool call info - try all possible locations
     const toolCalls = message.toolCalls || message.toolCallList || body.toolCalls || body.toolCallList || [];
+    console.log('Parsed toolCalls count:', toolCalls.length);
     
     if (toolCalls.length === 0) {
       return NextResponse.json({
@@ -249,9 +256,11 @@ export async function POST(request: NextRequest) {
             }
           }
           
+          // CRITICAL: VAPI requires single-line strings - newlines cause parsing errors
+          const resultText = formattedParts.join(' ').replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
           results.push({
             toolCallId,
-            result: formattedParts.join('\n\n') || "I found some information but couldn't format it properly.",
+            result: resultText || "I found some information but couldn't format it properly.",
           });
         } else {
           results.push({
@@ -268,10 +277,15 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    return NextResponse.json({ results }, { headers: corsHeaders });
+    const responseObj = { results };
+    console.log('=== SENDING RESPONSE ===');
+    console.log('Response:', JSON.stringify(responseObj));
+    console.log('Total time:', Date.now() - startTime, 'ms');
+    return NextResponse.json(responseObj, { headers: corsHeaders });
     
   } catch (error) {
     console.error('KB search error:', error);
+    console.log('Error after', Date.now() - startTime, 'ms');
     return NextResponse.json({
       results: [{
         toolCallId: 'error',
