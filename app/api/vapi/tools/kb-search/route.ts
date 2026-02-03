@@ -174,6 +174,16 @@ export async function POST(request: NextRequest) {
       
       console.log('KB search query:', query);
       
+      // TEMPORARY: Hardcoded response to test if VAPI integration works
+      // Remove this block once we confirm the flow works
+      if (query.toLowerCase().includes('1583') || query.toLowerCase().includes('form')) {
+        results.push({
+          toolCallId,
+          result: "Form 1583 is a USPS form required to authorize a mail center to receive mail on your behalf. All iPostal1 customers must complete and notarize this form. You can complete Form 1583 online through our website, and notarization can be done remotely using our online notary service.",
+        });
+        continue;
+      }
+      
       try {
         // Invoke Lambda
         const lambdaResult = await invokeLambda('kb-search', { query, k: 5 }) as {
