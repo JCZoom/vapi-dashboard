@@ -256,15 +256,15 @@ export async function POST(request: NextRequest) {
         console.log(`Looked up customer ${customerPhone}: ${firstName || 'not found'}`);
       }
 
-      // Return assistant overrides with personalized firstMessage
+      // Return the Freddy AI assistant ID with personalized greeting override
       const personalizedGreeting = firstName
         ? `Hi ${firstName}! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`
         : `Hi! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`;
 
       return NextResponse.json({
-        assistant: {
+        assistantId: '756e9d05-80e3-4922-99a5-928277d93206',
+        assistantOverrides: {
           firstMessage: personalizedGreeting,
-          firstMessageMode: 'assistant-speaks-first',
         },
       }, { headers: corsHeaders });
     }
