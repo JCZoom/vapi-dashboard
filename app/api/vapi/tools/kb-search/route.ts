@@ -239,19 +239,28 @@ export async function POST(request: NextRequest) {
         if (lambdaResult.results && lambdaResult.results.length > 0) {
           const best = lambdaResult.results[0];
           const meta = best.meta || {};
-          // Clean up text: remove HTML, headers, and limit length
-          let text = (meta.text_cleaned || meta.raw_text || '')
-            .replace(/<[^>]*>/g, '')  // Remove HTML tags
-            .replace(/^#+ .*/gm, '')  // Remove markdown headers
-            .replace(/Click for Full View/g, '')  // Remove UI text
-            .replace(/[\n\r]+/g, ' ')  // Single line
-            .replace(/\s+/g, ' ')  // Normalize whitespace
+          // Get text - prefer text_cleaned, fall back to raw_text
+          let text = meta.text_cleaned || meta.raw_text || '';
+          
+          // Light cleanup only - don't strip too much
+          text = text
+            .replace(/<[^>]*>/g, ' ')  // Replace HTML tags with space
+            .replace(/#+\s*/g, '')  // Remove # symbols only, keep text
+            .replace(/Click for Full View/gi, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/[\n\r]+/g, ' ')
+            .replace(/\s+/g, ' ')
             .trim()
-            .substring(0, 300);  // Shorter for faster LLM processing
+            .substring(0, 400);
+          
+          // If still empty, use article title
+          if (!text && meta.article_title) {
+            text = `Information about ${meta.article_title}`;
+          }
           
           results.push({
             toolCallId,
-            result: text || "I found information but couldn't extract it properly.",
+            result: text || "I couldn't extract the information. Let me connect you with an agent.",
           });
         } else {
           results.push({
