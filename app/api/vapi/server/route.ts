@@ -15,6 +15,14 @@ export async function OPTIONS() {
 
 const FRESHSALES_BASE_URL = 'https://ipostal1-org.myfreshworks.com/crm/sales/api';
 
+interface ToolCall {
+  id: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 interface VapiServerMessage {
   message: {
     type: string;
@@ -23,6 +31,9 @@ interface VapiServerMessage {
         number?: string;
       };
     };
+    toolCalls?: ToolCall[];
+    toolCallList?: ToolCall[];
+    toolWithToolCallList?: Array<{ toolCall: ToolCall }>;
   };
 }
 
@@ -64,6 +75,38 @@ export async function POST(request: NextRequest) {
     const messageType = body.message?.type;
 
     console.log('VAPI server event:', messageType, new Date().toISOString());
+
+    // Handle tool-calls event - forward to dedicated KB search endpoint
+    if (messageType === 'tool-calls') {
+      // Extract tool calls from various VAPI formats
+      const toolCalls = body.message?.toolCalls || 
+                       body.message?.toolCallList ||
+                       body.message?.toolWithToolCallList?.map(t => t.toolCall) ||
+                       [];
+      
+      if (toolCalls.length > 0) {
+        // Forward to the KB search endpoint
+        const kbSearchUrl = new URL('/api/vapi/tools/kb-search', request.url);
+        const kbResponse = await fetch(kbSearchUrl.toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ toolCalls }),
+        });
+        
+        if (kbResponse.ok) {
+          const result = await kbResponse.json();
+          return NextResponse.json(result, { headers: corsHeaders });
+        }
+      }
+      
+      // Fallback if KB search fails
+      return NextResponse.json({
+        results: toolCalls.map((tc: ToolCall) => ({
+          toolCallId: tc.id,
+          result: "I'm having trouble accessing the knowledge base. Let me connect you with an agent.",
+        }))
+      }, { headers: corsHeaders });
+    }
 
     // Handle assistant-request event - this fires before the call starts
     if (messageType === 'assistant-request') {
