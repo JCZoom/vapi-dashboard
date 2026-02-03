@@ -182,21 +182,41 @@ export async function POST(request: NextRequest) {
       const toolCallId = tc.id || 'unknown';
       let query = '';
       
-      // Extract query from arguments - handle both string and object formats
+      // Extract query from arguments - handle all possible formats from VAPI
       const rawArgs = tc.function?.arguments || tc.parameters || {};
-      if (rawArgs) {
-        if (typeof rawArgs === 'string') {
-          try {
-            const args = JSON.parse(rawArgs);
-            query = args.query || '';
-          } catch {
-            query = rawArgs;
-          }
-        } else if (typeof rawArgs === 'object') {
-          // Arguments already parsed as object
-          query = (rawArgs as Record<string, unknown>).query as string || '';
+      console.log('Raw args type:', typeof rawArgs, 'value:', JSON.stringify(rawArgs).substring(0, 200));
+      
+      if (typeof rawArgs === 'string') {
+        try {
+          const args = JSON.parse(rawArgs);
+          query = typeof args.query === 'string' ? args.query : String(args.query || '');
+        } catch {
+          query = rawArgs;
+        }
+      } else if (rawArgs && typeof rawArgs === 'object') {
+        const argsObj = rawArgs as Record<string, unknown>;
+        const queryVal = argsObj.query;
+        // Ensure query is always a string
+        if (typeof queryVal === 'string') {
+          query = queryVal;
+        } else if (queryVal && typeof queryVal === 'object') {
+          // Query might be nested - try to extract
+          query = JSON.stringify(queryVal);
+        } else if (queryVal) {
+          query = String(queryVal);
         }
       }
+      
+      // Final safety check - ensure query is a non-empty string
+      if (typeof query !== 'string' || !query.trim()) {
+        console.log('Query extraction failed, got:', typeof query, query);
+        results.push({
+          toolCallId,
+          result: "I couldn't understand the search query. Could you please rephrase your question?",
+        });
+        continue;
+      }
+      query = query.trim();
       
       if (!query) {
         results.push({
