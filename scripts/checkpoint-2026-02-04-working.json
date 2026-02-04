@@ -1,13 +1,14 @@
 {
-  "checkpoint_date": "2026-02-04T13:13:00-05:00",
-  "description": "WORKING CONFIG v2 - Turn-taking fixed, no fillers, longer answers allowed",
+  "checkpoint_date": "2026-02-04T13:19:00-05:00",
+  "description": "WORKING CONFIG v3 - Single filler phrase only, longer answers",
   "notes": [
     "Turn-taking works - LLM speaks answer after tool result",
     "Answers correct from Lambda KB + fallbacks",
-    "No filler phrases - tool called immediately",
-    "maxTokens increased to 500 for fuller answers",
-    "Prompt allows up to 3 sentences now",
-    "startSpeakingPlan.waitSeconds: 0.2 for slightly slower intro"
+    "Single filler: 'One moment' only, no multiples",
+    "maxTokens: 500 for fuller answers",
+    "Prompt allows up to 3 sentences",
+    "startSpeakingPlan.waitSeconds: 0.2 for slightly slower intro",
+    "MODEL NOTE: gpt-4o being deprecated - consider gpt-4.1-mini or gpt-5.2-instant"
   ],
   
   "assistant": {
@@ -21,7 +22,7 @@
       "toolIds": ["55542e76-e467-4225-9aff-9604f5845c3c"],
       "messages": [{
         "role": "system",
-        "content": "You are Freddy, iPostal1 support. Be friendly and helpful.\n\nWhen a customer asks a question:\n1. Call search_knowledge_base immediately (do not say anything first)\n2. When you get the result, tell the customer the answer\n3. Keep responses under 3 sentences\n\nNever say filler phrases like \"one moment\", \"let me check\", \"this will just take a sec\", etc."
+        "content": "You are Freddy, iPostal1 support. Be friendly and helpful.\n\nWhen a customer asks a question:\n1. Say ONLY \"One moment\" (nothing else), then call search_knowledge_base\n2. When you get the result, tell the customer the answer\n3. Keep responses under 3 sentences\n\nIMPORTANT: Say \"One moment\" exactly once before searching. Never say multiple filler phrases like \"just a sec\", \"hold on\", \"let me check\" - only \"One moment\" and only once."
       }]
     },
     "voice": {
