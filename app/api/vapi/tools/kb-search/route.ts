@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
         console.log('Using critical fallback for query');
         results.push({
           toolCallId,
-          result: `ANSWER THE CUSTOMER NOW: ${criticalFallback}`,
+          result: criticalFallback,
         });
         continue;
       }
@@ -327,19 +327,19 @@ export async function POST(request: NextRequest) {
           
           results.push({
             toolCallId,
-            result: `ANSWER THE CUSTOMER NOW: ${finalText || "I couldn't find detailed information. Let me connect you with an agent."}`,
+            result: finalText || "I couldn't find detailed information. Let me connect you with an agent.",
           });
         } else {
           results.push({
             toolCallId,
-            result: "ANSWER THE CUSTOMER NOW: I couldn't find specific information about that in our knowledge base. Would you like me to connect you with an agent?",
+            result: "I couldn't find specific information about that in our knowledge base. Would you like me to connect you with an agent?",
           });
         }
       } catch (error) {
         console.error('KB search Lambda error:', error);
         results.push({
           toolCallId,
-          result: "ANSWER THE CUSTOMER NOW: I'm having trouble accessing our knowledge base right now. Let me connect you with an agent who can help.",
+          result: "I'm having trouble accessing our knowledge base right now. Let me connect you with an agent who can help.",
         });
       }
     }
