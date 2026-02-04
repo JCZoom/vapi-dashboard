@@ -214,8 +214,32 @@ export async function POST(request: NextRequest) {
     // VAPI may send call info at multiple paths - check all possibilities
     const callInfo = message.call || body.call;
 
+    // Quick return for non-actionable webhook types to prevent blocking
+    const messageType = message?.type || body?.message?.type;
+    const nonBlockingTypes = [
+      'conversation-update',
+      'speech-update', 
+      'status-update',
+      'transcript',
+      'hang',
+      'end-of-call-report',
+      'assistant.started',
+      'assistant.ended',
+    ];
+    
+    if (messageType && nonBlockingTypes.includes(messageType)) {
+      console.log('Quick return for webhook type:', messageType);
+      return NextResponse.json({ success: true }, { headers: corsHeaders });
+    }
+
+    // Handle tool-calls explicitly
+    if (messageType === 'tool-calls') {
+      console.log('Processing tool-calls webhook');
+      // Continue to tool call handling below
+    }
+
     // Handle assistant-request event - fires before call starts, allows personalized greeting
-    if (message?.type === 'assistant-request') {
+    if (messageType === 'assistant-request') {
       const customerPhone = message.call?.customer?.number;
       let firstName: string | null = null;
 
