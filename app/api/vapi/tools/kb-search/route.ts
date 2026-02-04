@@ -136,6 +136,48 @@ async function invokeLambda(functionName: string, payload: object): Promise<unkn
   }
 }
 
+// Critical FAQ fallbacks for questions where Lambda search fails
+function getCriticalFallback(query: string): string | null {
+  // What is 1583 / Form 1583
+  if (query.includes('1583') && (query.includes('what') || query.includes('form'))) {
+    return "Form 1583 is a USPS authorization form that allows iPostal1 to receive and handle mail on your behalf. It's required for all virtual mailbox accounts and must be notarized.";
+  }
+  
+  // Notarization - where/how
+  if (query.includes('notari') && (query.includes('how') || query.includes('where') || query.includes('get'))) {
+    return "You can get your Form 1583 notarized in two ways: online through proof.com for $25, or in person at your specific mail center location. Bank notaries and other locations are not accepted.";
+  }
+  
+  // Bank notary / different location notary
+  if ((query.includes('bank') && query.includes('notari')) || 
+      (query.includes('different') && (query.includes('location') || query.includes('notari')))) {
+    return "No, bank notaries and other iPostal1 locations are not accepted. You must notarize at your specific mail center location or use the online notary at proof.com.";
+  }
+  
+  // International / outside US
+  if (query.includes('outside') || query.includes('international') || query.includes('abroad') || 
+      (query.includes('live') && (query.includes('us') || query.includes('united states')))) {
+    return "If you live outside the US, you must use the online notary service at proof.com to notarize your Form 1583. In-person notarization at the mail center is not available for international customers.";
+  }
+  
+  // Add spouse / additional person
+  if (query.includes('spouse') || query.includes('add') && (query.includes('person') || query.includes('someone'))) {
+    return "To add a spouse or additional recipient, they need their own Form 1583, two valid IDs, and notarization via proof.com or at your mail center. There's a $5 discount for additional recipients notarized in the same session.";
+  }
+  
+  // Scan cost
+  if (query.includes('scan') && (query.includes('cost') || query.includes('much') || query.includes('price'))) {
+    return "Scanning costs $2.25 for the first 10 pages, then $0.25 for each additional page. Scan and shred bundles are available at a discount.";
+  }
+  
+  // Discard vs shred
+  if ((query.includes('discard') || query.includes('shred')) && (query.includes('difference') || query.includes('vs'))) {
+    return "Discarding is free and mail goes to regular trash. Shredding costs $2.25 and securely destroys documents - recommended for sensitive mail.";
+  }
+  
+  return null;
+}
+
 interface VapiToolCall {
   id: string;
   function?: {
@@ -227,6 +269,18 @@ export async function POST(request: NextRequest) {
       }
       
       console.log('KB search query:', query);
+      const queryLower = query.toLowerCase();
+      
+      // CRITICAL FAQ FALLBACKS - bypass Lambda for key questions
+      const criticalFallback = getCriticalFallback(queryLower);
+      if (criticalFallback) {
+        console.log('Using critical fallback for query');
+        results.push({
+          toolCallId,
+          result: `ANSWER THE CUSTOMER NOW: ${criticalFallback}`,
+        });
+        continue;
+      }
       
       try {
         // Invoke Lambda
