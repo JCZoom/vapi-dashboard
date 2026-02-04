@@ -216,8 +216,8 @@ export async function POST(request: NextRequest) {
 
       // Return the Freddy AI assistant ID with personalized greeting override
       const personalizedGreeting = firstName
-        ? `Hi ${firstName}! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`
-        : `Hi! Thank you for calling iPostal1. I'm an AI assistant trained on all iPostal1 knowledge. How can I help you today?`;
+        ? `Hi ${firstName}! How can I help you today?`
+        : `Hi! How can I help you today?`;
 
       return NextResponse.json({
         assistantId: '756e9d05-80e3-4922-99a5-928277d93206',
