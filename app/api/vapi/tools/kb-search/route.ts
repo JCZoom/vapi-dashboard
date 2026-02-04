@@ -137,32 +137,37 @@ async function invokeLambda(functionName: string, payload: object): Promise<unkn
 }
 
 // Critical FAQ fallbacks for questions where Lambda search fails
+// ORDER MATTERS: Specific checks MUST come before general checks
 function getCriticalFallback(query: string): string | null {
-  // What is 1583 / Form 1583
-  if (query.includes('1583') && (query.includes('what') || query.includes('form'))) {
-    return "Form 1583 is a USPS authorization form that allows iPostal1 to receive and handle mail on your behalf. It's required for all virtual mailbox accounts and must be notarized.";
-  }
+  // SPECIFIC CHECKS FIRST (before general 1583 check)
   
-  // Notarization - where/how
-  if (query.includes('notari') && (query.includes('how') || query.includes('where') || query.includes('get'))) {
-    return "You can get your Form 1583 notarized in two ways: online through proof.com for $25, or in person at your specific mail center location. Bank notaries and other locations are not accepted.";
-  }
-  
-  // Bank notary / different location notary
-  if ((query.includes('bank') && query.includes('notari')) || 
-      (query.includes('different') && (query.includes('location') || query.includes('notari')))) {
-    return "No, bank notaries and other iPostal1 locations are not accepted. You must notarize at your specific mail center location or use the online notary at proof.com.";
+  // Bank notary / different location / other notary locations
+  if (query.includes('different') || query.includes('bank') || query.includes('other location') ||
+      (query.includes('notari') && (query.includes('location') || query.includes('where')))) {
+    return "No, you cannot use bank notaries, other iPostal1 locations, or any other notary. You must notarize at YOUR specific mail center location or use the online notary at proof.com.";
   }
   
   // International / outside US
   if (query.includes('outside') || query.includes('international') || query.includes('abroad') || 
-      (query.includes('live') && (query.includes('us') || query.includes('united states')))) {
+      (query.includes('live') && !query.includes('how'))) {
     return "If you live outside the US, you must use the online notary service at proof.com to notarize your Form 1583. In-person notarization at the mail center is not available for international customers.";
   }
   
+  // How to notarize (general)
+  if (query.includes('notari') && (query.includes('how') || query.includes('get'))) {
+    return "You can get your Form 1583 notarized in two ways: online through proof.com for $25, or in person at your specific mail center location. Bank notaries and other locations are not accepted.";
+  }
+  
   // Add spouse / additional person
-  if (query.includes('spouse') || query.includes('add') && (query.includes('person') || query.includes('someone'))) {
+  if (query.includes('spouse') || (query.includes('add') && (query.includes('person') || query.includes('someone') || query.includes('recipient')))) {
     return "To add a spouse or additional recipient, they need their own Form 1583, two valid IDs, and notarization via proof.com or at your mail center. There's a $5 discount for additional recipients notarized in the same session.";
+  }
+  
+  // GENERAL CHECKS LAST
+  
+  // What is 1583 / Form 1583 (only if asking "what is")
+  if (query.includes('1583') && query.includes('what')) {
+    return "Form 1583 is a USPS authorization form that allows iPostal1 to receive and handle mail on your behalf. It's required for all virtual mailbox accounts and must be notarized.";
   }
   
   // Scan cost
