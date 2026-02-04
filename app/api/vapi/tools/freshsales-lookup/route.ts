@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
     }
 
     // SIMPLIFIED: If it's not assistant-request, treat it as a tool call
-    // Extract tool call ID from ANY possible location
+    // Extract tool call ID and function name from ANY possible location
     const toolCallId = 
       body?.message?.toolCallList?.[0]?.id ||
       body?.message?.toolCalls?.[0]?.id ||
@@ -278,6 +278,36 @@ export async function POST(request: NextRequest) {
       message?.toolCalls?.[0]?.id ||
       message?.toolWithToolCallList?.[0]?.toolCall?.id ||
       'fallback_tool_call';
+    
+    // Extract function name to route to correct handler
+    const functionName = 
+      body?.message?.toolCallList?.[0]?.function?.name ||
+      body?.message?.toolCalls?.[0]?.function?.name ||
+      body?.message?.toolWithToolCallList?.[0]?.toolCall?.function?.name ||
+      body?.toolCallList?.[0]?.function?.name ||
+      body?.toolCalls?.[0]?.function?.name ||
+      body?.toolWithToolCallList?.[0]?.toolCall?.function?.name ||
+      message?.toolCallList?.[0]?.function?.name ||
+      message?.toolCalls?.[0]?.function?.name ||
+      message?.toolWithToolCallList?.[0]?.toolCall?.function?.name ||
+      '';
+    
+    console.log('Tool call routing - Function:', functionName, 'ID:', toolCallId);
+    
+    // Route search_knowledge_base calls to kb-search endpoint
+    if (functionName === 'search_knowledge_base') {
+      console.log('Routing to kb-search endpoint');
+      const kbSearchUrl = new URL('/api/vapi/tools/kb-search', request.url);
+      const kbResponse = await fetch(kbSearchUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      const kbResult = await kbResponse.json();
+      return NextResponse.json(kbResult, { status: 200, headers: corsHeaders });
+    }
     
     // Get phone number from ANY possible location
     const phoneNumber = 
