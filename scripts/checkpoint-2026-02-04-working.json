@@ -1,0 +1,94 @@
+{
+  "checkpoint_date": "2026-02-04T13:06:00-05:00",
+  "description": "WORKING CONFIG - Turn-taking fixed, correct answers, no literal prefix reading",
+  "notes": [
+    "Turn-taking now works - LLM speaks answer after tool result",
+    "Answers are correct from Lambda KB + fallbacks",
+    "Removed 'ANSWER THE CUSTOMER NOW:' prefix",
+    "Removed tool messages - LLM says 'One moment' itself",
+    "Minor issue: occasional redundant fillers ('this'll just take a sec' + 'one moment')"
+  ],
+  
+  "assistant": {
+    "id": "756e9d05-80e3-4922-99a5-928277d93206",
+    "name": "Freddy AI",
+    "model": {
+      "model": "gpt-4o",
+      "provider": "openai",
+      "temperature": 0.3,
+      "maxTokens": 300,
+      "toolIds": ["55542e76-e467-4225-9aff-9604f5845c3c"],
+      "messages": [{
+        "role": "system",
+        "content": "You are Freddy, iPostal1 support. Be friendly and helpful.\n\nWhen a customer asks a question:\n1. Say \"One moment\" then call search_knowledge_base\n2. When you get the result, immediately tell the customer the answer\n3. Keep responses under 2 sentences"
+      }]
+    },
+    "voice": {
+      "provider": "11labs",
+      "model": "eleven_turbo_v2_5",
+      "voiceId": "TcAStCk0faGcHdNIFX23",
+      "stability": 0.5,
+      "similarityBoost": 0.75
+    },
+    "transcriber": {
+      "provider": "deepgram",
+      "model": "flux-general-en",
+      "language": "en",
+      "confidenceThreshold": 0.4
+    },
+    "firstMessage": "Hi, {{customer.name}}! How can I help you today?",
+    "serverUrl": "https://vapi.jeffcoy.net/api/vapi/server",
+    "interruptionsEnabled": true,
+    "numWordsToInterruptAssistant": 2,
+    "backchannelingEnabled": true,
+    "silenceTimeoutSeconds": 60,
+    "startSpeakingPlan": {
+      "waitSeconds": 0.1,
+      "transcriptionEndpointingPlan": {
+        "onPunctuationSeconds": 0.1,
+        "onNoPunctuationSeconds": 0.5,
+        "onNumberSeconds": 0.3
+      },
+      "smartEndpointingEnabled": false
+    },
+    "stopSpeakingPlan": {
+      "numWords": 0,
+      "voiceSeconds": 0.2,
+      "backoffSeconds": 1
+    }
+  },
+  
+  "tool": {
+    "id": "55542e76-e467-4225-9aff-9604f5845c3c",
+    "type": "function",
+    "function": {
+      "name": "search_knowledge_base",
+      "description": "Search the iPostal1 knowledge base to find answers to customer questions."
+    },
+    "server": {
+      "url": "https://vapi.jeffcoy.net/api/vapi/tools/kb-search",
+      "timeoutSeconds": 20
+    },
+    "messages": [],
+    "async": false
+  },
+  
+  "answer_sources": {
+    "primary": "AWS Lambda kb-search function with FAISS vector index",
+    "fallback": "Critical FAQ fallbacks in /app/api/vapi/tools/kb-search/route.ts getCriticalFallback()",
+    "fallback_topics": [
+      "different location / bank notary - triggers if 'different' or 'bank' in query",
+      "international / outside US - triggers if 'outside', 'international', 'abroad' in query",
+      "how to notarize - triggers if 'notari' + 'how' or 'get' in query",
+      "add spouse - triggers if 'spouse' or 'add' + 'person/someone/recipient' in query",
+      "what is 1583 - triggers if '1583' + 'what' in query (LAST - most general)",
+      "scan cost - triggers if 'scan' + 'cost/much/price' in query",
+      "discard vs shred - triggers if 'discard/shred' + 'difference/vs' in query"
+    ]
+  },
+  
+  "restore_commands": {
+    "assistant": "curl -X PATCH -H 'Authorization: Bearer 529a0748-1008-460d-b9df-73e3fe811a6a' -H 'Content-Type: application/json' 'https://api.vapi.ai/assistant/756e9d05-80e3-4922-99a5-928277d93206' -d '{...}'",
+    "tool": "curl -X PATCH -H 'Authorization: Bearer 529a0748-1008-460d-b9df-73e3fe811a6a' -H 'Content-Type: application/json' 'https://api.vapi.ai/tool/55542e76-e467-4225-9aff-9604f5845c3c' -d '{\"server\":{\"url\":\"https://vapi.jeffcoy.net/api/vapi/tools/kb-search\",\"timeoutSeconds\":20},\"messages\":[]}'"
+  }
+}
