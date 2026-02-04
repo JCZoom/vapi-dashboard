@@ -197,53 +197,11 @@ export async function POST(request: NextRequest) {
 
     console.log('VAPI server event:', messageType, new Date().toISOString());
 
-    // Handle tool-calls event - process KB search directly
+    // DO NOT handle tool-calls here - let the tool's own server.url handle them
+    // This endpoint only handles assistant-request for personalized greetings
     if (messageType === 'tool-calls') {
-      console.log('Processing tool-calls event');
-      
-      // Extract tool calls from various VAPI formats
-      const toolCalls = body.message?.toolCalls || 
-                       body.message?.toolCallList ||
-                       body.message?.toolWithToolCallList?.map(t => t.toolCall) ||
-                       [];
-      
-      console.log('Found tool calls:', toolCalls.length);
-      
-      const results = [];
-      
-      for (const tc of toolCalls) {
-        if (tc.function.name === 'search_knowledge_base') {
-          let query = '';
-          try {
-            const args = JSON.parse(tc.function.arguments || '{}');
-            query = args.query || '';
-          } catch {
-            query = tc.function.arguments;
-          }
-          
-          console.log('KB search query:', query);
-          const searchResult = await searchKnowledgeBase(query);
-          console.log('KB search result length:', searchResult.length);
-          
-          results.push({
-            toolCallId: tc.id,
-            result: searchResult,
-          });
-        }
-      }
-      
-      if (results.length > 0) {
-        console.log('Returning results:', results.length);
-        return NextResponse.json({ results }, { headers: corsHeaders });
-      }
-      
-      // Fallback if no KB search tools found
-      return NextResponse.json({
-        results: toolCalls.map((tc: ToolCall) => ({
-          toolCallId: tc.id,
-          result: "I couldn't process that request. Let me connect you with an agent.",
-        }))
-      }, { headers: corsHeaders });
+      console.log('Tool-calls received at server endpoint - returning empty to let tool server handle');
+      return NextResponse.json({ success: true }, { headers: corsHeaders });
     }
 
     // Handle assistant-request event - this fires before the call starts
